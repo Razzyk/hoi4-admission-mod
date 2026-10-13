@@ -1,0 +1,8 @@
+{
+  "schema": 1,
+  "gameVersion": "1.19.3.0",
+  "gameplayMods": [],
+  "nativeModules": [
+    { "name": "HOI4Admission", "version": "0.3.0", "protocol": 2, "lobbyEnforcement": true }
+  ]
+}

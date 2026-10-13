@@ -1,0 +1,59 @@
+name: Build, test and release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Zig 0.15.2
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $release = (Invoke-RestMethod 'https://ziglang.org/download/index.json').'0.15.2'.'x86_64-windows'
+          $zip = Join-Path $env:RUNNER_TEMP 'zig.zip'
+          Invoke-WebRequest -Uri $release.tarball -OutFile $zip
+          if ((Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant() -ne $release.shasum) { throw 'Zig checksum mismatch' }
+          Expand-Archive $zip (Join-Path $env:RUNNER_TEMP 'zig')
+          (Join-Path $env:RUNNER_TEMP 'zig\zig-x86_64-windows-0.15.2') | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Build release assets
+        shell: pwsh
+        run: .\build.ps1 -WorkDirectory (Join-Path $env:RUNNER_TEMP 'module-build')
+      - name: Run standalone tests
+        shell: pwsh
+        run: .\tests\Test.ps1 -WorkDirectory (Join-Path $env:RUNNER_TEMP 'module-tests')
+      - uses: actions/upload-artifact@v4
+        with:
+          name: module-release
+          path: |
+            dist/HOI4-Admission-Mod-win-x64.zip
+            dist/module-release.json
+          if-no-files-found: error
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build-test
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: module-release
+          path: dist
+      - name: Publish module release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create $env:GITHUB_REF_NAME dist/HOI4-Admission-Mod-win-x64.zip dist/module-release.json --verify-tag --title "HOI4 Admission Mod $env:GITHUB_REF_NAME" --notes-file CHANGELOG.md
+          if ($LASTEXITCODE -ne 0) { throw 'GitHub release publishing failed' }
