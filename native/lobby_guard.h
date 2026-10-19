@@ -3,7 +3,8 @@
 #include "protocol.h"
 
 typedef void (*LobbyLog)(const char *message);
-int LobbyGuardStart(const AdmissionConfig *config, volatile LONG *eligible, LobbyLog logger);
+int LobbyGuardStart(const AdmissionConfig *config, volatile LONG *eligible, LobbyLog logger,
+    const char *dll_hash, const char *manifest_hash);
 // Stop keeps the installed guard resident and denies subsequent joins.
 void LobbyGuardStop(void);
 DWORD LobbyGuardState(void);

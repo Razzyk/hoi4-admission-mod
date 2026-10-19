@@ -30,9 +30,18 @@ if ($LASTEXITCODE -ne 0) { throw 'Vtable test compile failed' }
 & $vtableTests
 if ($LASTEXITCODE -ne 0) { throw 'Vtable checks failed' }
 $lobbyTests = Join-Path $WorkDirectory 'LobbyGuardTests.exe'
-& $Zig cc -target x86_64-windows-gnu -std=c11 -O2 -Wall -Wextra -Werror -o $lobbyTests (Join-Path $PSScriptRoot 'LobbyGuardTests.c') (Join-Path $root 'native\vtable_hook.c') -lbcrypt
+& $Zig cc -target x86_64-windows-gnu -std=c11 -O2 -Wall -Wextra -Werror -o $lobbyTests (Join-Path $PSScriptRoot 'LobbyGuardTests.c') (Join-Path $root 'native\vtable_hook.c') (Join-Path $root 'native\peer_protocol.c') -lbcrypt
 if ($LASTEXITCODE -ne 0) { throw 'Lobby gate test compile failed' }
 & $lobbyTests
 if ($LASTEXITCODE -ne 0) { throw 'Lobby gate checks failed' }
+$peerTests = Join-Path $WorkDirectory 'PeerProtocolTests.exe'
+& $Zig cc -target x86_64-windows-gnu -std=c11 -O2 -Wall -Wextra -Werror -o $peerTests (Join-Path $PSScriptRoot 'PeerProtocolTests.c') -lbcrypt
+if ($LASTEXITCODE -ne 0) { throw 'Peer protocol test compile failed' }
+& $peerTests
+if ($LASTEXITCODE -ne 0) { throw 'Peer protocol checks failed' }
+& (Join-Path $PSScriptRoot 'Test-PeerTransport.ps1') -Zig $Zig -WorkDirectory (Join-Path $WorkDirectory 'peer-transport') -CacheDirectory $WorkDirectory
+if ($LASTEXITCODE -ne 0) { throw 'Peer transport checks failed' }
 
-Write-Output 'All standalone policy, ticket, cryptographic and native guard tests passed.'
+& (Join-Path $PSScriptRoot 'stability\Test-Stability.ps1') -Zig $Zig -WorkDirectory (Join-Path $WorkDirectory 'stability') -CacheDirectory $WorkDirectory
+if ($LASTEXITCODE -ne 0) { throw 'Stability guard checks failed' }
+Write-Output 'All standalone policy, ticket, cryptographic, lobby and stability guard tests passed.'

@@ -100,7 +100,7 @@ namespace HOI4Admission
                             if (clients.Values.Any(r => r.Eligible && r.Player == fields[5])) reason = "PLAYER_SEAT_IN_USE";
                             else
                             {
-                                record = new ClientRecord { Pid = pid, Creation = creation, Player = fields[5], Session = fields[4], Lease = Guid.NewGuid().ToString("N"), Eligible = true, LastSeenUtc = DateTime.UtcNow, LastSeenTicks = Stopwatch.GetTimestamp(), Detail = "Game, manifest, DLL protocol, identity and permission verified; native lobby guard installed" };
+                                record = new ClientRecord { Pid = pid, Creation = creation, Player = fields[5], Session = fields[4], Lease = Guid.NewGuid().ToString("N"), Eligible = true, LastSeenUtc = DateTime.UtcNow, LastSeenTicks = Stopwatch.GetTimestamp(), Detail = "Game, manifest, DLL protocol, identity and permission verified; native lobby and career-profile stability guards installed" };
                                 clients[Files.Identity(pid, creation)] = record;
                             }
                         }

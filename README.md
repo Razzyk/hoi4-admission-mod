@@ -1,34 +1,42 @@
 # HOI4 Admission Mod
 
-Native lobby admission module and local verification service for **Hearts of Iron IV 1.19.3.0, Windows x64**. The separate [HOI4 Injector](https://github.com/Razzyk/hoi4-injector) installs this release, watches for `hoi4.exe`, loads the DLL and runs the service. Download the injector to use the module; this repository does not contain the injector GUI or loader.
+A combined lobby admission and career-profile stability DLL for **Hearts of Iron IV 1.19.3.0, Windows x64**. The separate [HOI4 Injector](https://github.com/Razzyk/hoi4-injector) detects `hoi4.exe`, loads this DLL and runs its local verification helper.
 
-The injected host checks a one-use authorization ticket before forwarding a normal join request to HOI4's original admission callback. The client DLL adds the ticket, and the service checks the live process, game/DLL/manifest identity, session permission and current verification lease. Tickets expire after ten seconds, are bound to the original join packet and cannot be reused. A missing or invalid ticket blocks admission. Stopping verification leaves the installed guard in place and refuses subsequent joins.
+## Play with other computers
 
-The existing local test demonstrated both outcomes: a plain client was refused and the verified injected client entered the lobby. The plain game's UI displayed **timed out**; the injected host's log identified the rejected ticket. See [VALIDATION.md](VALIDATION.md) for the evidence and [TARGETS.md](TARGETS.md) for the supported native boundaries.
+1. Every participant installs/runs the injector and uses the **same module release**. Wait for `Verified - eligible` before joining or hosting.
+2. Host an ordinary HOI4 Steam multiplayer lobby. Share its usual game ID or Steam invitation.
+3. Other players join normally. The injected host holds each joining request until the peer completes a fresh, connection-bound module handshake. Plain clients and incompatible module builds are refused before the original admission callback.
+
+The handshake travels over HOI4's existing multiplayer connection, so it can cross internet connections through the game's normal transport. It needs no dedicated HOI4 server, verification broker, port forwarding for this mod, shared session file, credentials exchanged between players, or LAN discovery. Each installation keeps its own private local service and session; those identifiers do not need to match. Normal game/Steam connectivity is still required. LAN is not deliberately disabled.
+
+**Validation:** the peer protocol and actual native wrappers have automated checks. A live join between separate internet connections has not yet been observed. Crossplay/Nakama and positive live hotjoin/reconnect coverage remain unverified. See [VALIDATION.md](VALIDATION.md).
+
+## What the check means
+
+The local helper checks the actual local process identity, loaded DLL, game/DLL/manifest hashes and a live lease. Only then does the shipped DLL participate in peer admission. Hosts compare DLL and manifest build hashes, generate a fresh random challenge, bind it to the exact original join packet and transport connection, and accept a response once within ten seconds. Extension messages are consumed by the DLL before HOI4 parses them; accepted requests reach the original callback with their original bytes.
+
+This is a **cooperative compatibility check**, not remote attestation or tamper-proof anti-cheat. The peer confirmation uses a public protocol; a deliberately modified client can imitate it or report hashes. It rejects ordinary clients without the matching mod, but cannot prove a hostile remote machine is running an unmodified DLL. Existing admitted players are not continuously kicked if verification stops. Missing/invalid proofs are recorded in the host's injector logs; the unmodified game's refusal UI may show a generic timeout or join-disabled error.
+
+## Included stability guard
+
+The same `HOI4Admission.dll` includes the [stability guard](https://github.com/Razzyk/hoi4-mp-stability-guard): duplicate country entries in a career-profile update use the original native range kernel sequentially, preserving entries and order. Unique-country updates keep the original scheduler. Both lobby and stability guards must install before local eligibility is granted. No separate stability launcher or DLL should be run alongside it.
+
+This is an experimental workaround for the targeted co-op career-profile race. **Army modifier-tree teardown is not patched; campaign crash reduction is unverified.** Source revision, port changes and installation safeguards are recorded in [STABILITY-PROVENANCE.md](STABILITY-PROVENANCE.md).
 
 ## Install and update
 
-1. Download the latest installer or portable release from [Razzyk/hoi4-injector](https://github.com/Razzyk/hoi4-injector/releases/latest).
-2. Run the injector, select the HOI4 installation if it is not detected, and let it fetch the module release.
-3. Start HOI4 with the injector running. The manager shows whether the DLL has loaded and verification succeeded.
+Download the [injector installer or portable release](https://github.com/Razzyk/hoi4-injector/releases/latest). Start it before HOI4; module updates come independently from this repository. Close **all** HOI4 instances before activating an update, then have every player use that release. The pinned executable hash must match; a game update requires a compatible module update.
 
-Module releases are independent of injector releases. Each release publishes `HOI4-Admission-Mod-win-x64.zip` and `module-release.json`. The injector checks the descriptor's version, protocol, minimum injector version, supported game identity and SHA256 file hashes before activating the package. Its archive contains exactly four flat entries: the descriptor, `HOI4Admission.dll`, `AdmissionService.exe` and `mod-manifest.json`. No game executable, game asset, configuration credential or user profile is included.
-
-## Scope
-
-This first module uses a **local Windows named-pipe service**. Verified participants must run on the same machine. A network broker is still needed for verified players on other computers. Local tickets are not remote attestation or tamper-proof anti-cheat.
-
-Normal join is live-tested. Hotjoin and reconnect requests are guarded by authored code and unit checks, but positive live hotjoin/reconnect tests and crossplay/Nakama coverage remain unverified. Existing admitted players are not continuously ejected when a lease expires. A different HOI4 executable hash is refused; every game update requires rediscovery and a compatible module release.
+Each module release publishes `HOI4-Admission-Mod-win-x64.zip` and `module-release.json`. The updater validates version, protocol, supported game and SHA256 file hashes. The archive contains exactly four flat entries: that descriptor, `HOI4Admission.dll`, `AdmissionService.exe` and `mod-manifest.json`. No proprietary game files or private session credentials are distributed. Existing injector 0.4.0 supports this module; injector 0.4.1 updates the explanatory UI text.
 
 ## Build and test
 
-Windows x64, PowerShell, **Zig 0.15.2** and the **.NET Framework 4.8** compiler are required. No proprietary game file is needed to build or run the standalone tests.
+Windows x64, PowerShell, **Zig 0.15.2** and the **.NET Framework 4.8** compiler are required. Standalone tests need no proprietary game files.
 
 ```powershell
 .\build.ps1 -Zig C:\tools\zig\zig.exe
 .\tests\Test.ps1 -Zig C:\tools\zig\zig.exe
 ```
 
-Build output is `dist/HOI4-Admission-Mod-win-x64.zip` and `dist/module-release.json`. `work/bin` also contains the read-only `AdmissionProbe.exe` and `LobbyInspector.exe` diagnostics; these are excluded from the update package. A `v<version>` Git tag must match `mod-manifest.json`; the Windows release workflow builds, tests and publishes both assets.
-
-The standalone suite covers 14 verification-policy checks, 26 ticket-store checks, 43 native guard cases with 1,466 assertions, repeated concurrent atomic vtable publication, and agreement between native and managed HMAC-SHA256. The injector's separate tests own executable detection and loader rejection. Source provenance is documented in [PROVENANCE.md](PROVENANCE.md).
+Build output is `dist/HOI4-Admission-Mod-win-x64.zip` and `dist/module-release.json`. Read-only diagnostics `AdmissionProbe.exe` and `LobbyInspector.exe` are built under `work/bin` and excluded from the release archive. Release tags must match the module manifest version. See [TARGETS.md](TARGETS.md) for native boundaries and [PROVENANCE.md](PROVENANCE.md) for source origins.

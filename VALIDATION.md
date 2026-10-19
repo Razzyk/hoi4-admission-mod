@@ -1,5 +1,18 @@
-# Validation — module v0.3.0
+# Validation
 
+## Module v0.4.0: direct peer admission and combined stability guard
+
+The complete Windows module builds with warnings treated as errors. The suite passes 14 local verification policy checks, 26 retained legacy local-ticket store checks, native/managed HMAC agreement, concurrent atomic vtable publication, 15 current peer-wrapper cases with 155 assertions, and 1,153 peer protocol checks. Peer cases exercise exact original-packet forwarding only after a matching response, plain/build-mismatched refusal, fresh outgoing nonces, connection/object/type/payload binding, malformed/truncated input, monotonic expiry, replayed offers/responses, concurrency and bounded replay-state exhaustion with automatic recovery.
+
+A two-process UDP loopback fixture also passed with separate host/client PIDs and context identities, 150 ms delay before each send, build-mismatch refusal, exact single original-packet admission, and offer/response replay refusal. It shares no live process or roster state. Loopback UDP is a transport fixture, not an internet or Steam lobby test.
+
+The combined DLL was automatically loaded into an isolated real HOI4 process by the existing published injector 0.4.0. Read-only inspection found all four lobby hooks, including the new proxy receive callback, pointing into the configured DLL with vtable pages restored to read-only; the stability CALL pointed to the RX relay and DLL wrapper with code protections restored. The local service held a current verified lease. The isolated test game closed normally and its temporary injector/service stopped. This establishes combined loading and hook installation, not a multiplayer join or campaign outcome.
+
+**A live join between different internet connections has not been tested.** Positive live hotjoin/reconnect, crossplay/Nakama, campaign stability/performance and continuous post-admission enforcement remain unverified. The direct protocol has no broker or shared local session. It checks cooperative peer compatibility rather than hostile-client remote attestation.
+
+## Historical module v0.3.0 validation
+
+The sections below record the earlier local-ticket release. Its visible join outcomes do not establish the new peer handshake's live multiplayer behavior. Local-ticket statements, the three-hook inspector and the proposed network broker describe v0.3.0 only; v0.4.0 replaces that data plane.
 ## Independent module release
 
 The repository split changes packaging and build ownership, not the native admission behavior from the live test below. Its standalone build produces exactly four flat archive entries: `module-release.json`, `HOI4Admission.dll`, `AdmissionService.exe` and `mod-manifest.json`. The descriptor records the supported game identity, protocol, minimum injector version and all three payload SHA256 hashes. Diagnostic executables, runtime files and private credentials are excluded.
@@ -50,3 +63,9 @@ The previous v0.2 test established loading and local handshake eligibility for t
 Simultaneous copies attached to the same Steam client produced blank hosted game IDs in two instances. After the user authorized closing the plain copy and injected player-two, the remaining injected player-one produced an ID in a fresh hosted lobby. This suggests simultaneous-copy interference without establishing the precise cause. No joined match between those three copies was demonstrated.
 
 Private configuration, credentials, raw game logs, profile paths and live identifiers are excluded from the distributable package. This implementation makes no remote attestation or tamper-proof claim.
+
+## Stability guard standalone fixtures
+
+The ported stability fixtures were run with `tests/stability/Test-Stability.ps1`, Zig 0.15.2, a dedicated work directory, and the existing Zig cache. The career regression passed all 127 assertions: the duplicate-country fixture changed from three same-country overlaps to zero while preserving six entries and total weight 266. The hook transaction fixture passed 302 assertions in this run, including CALL/relay execution and restoration, refusal cases, input preservation, diagnostics, and RX protection checks. Its isolated poisoned-transaction runs passed 14, 14, and 16 assertions. The concurrent CALL/thread-creation stress run completed 9,416,773 calls and 76 created threads.
+
+These authored fixtures run in disposable test processes and did not launch or inject into HOI4. They check the stability implementation and its test APIs; they do not compile or validate the admission worker integration, demonstrate a live campaign crash reduction, or establish multiplayer synchronization, hot-join behavior, or performance. The exact target remains the pinned 1.19.3.0 executable. The separate army modifier teardown crash remains unpatched, and this remains an experimental workaround. See [STABILITY-PROVENANCE.md](STABILITY-PROVENANCE.md) for source details.

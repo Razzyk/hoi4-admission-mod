@@ -1,5 +1,6 @@
 #include "protocol.h"
 #include "lobby_guard.h"
+#include "stability/stability_guard.h"
 
 static HMODULE self_module;
 static AdmissionConfig config;
@@ -64,13 +65,28 @@ static DWORD WINAPI worker(void *unused) {
     ULARGE_INTEGER creation;
     creation.LowPart = created.dwLowDateTime;
     creation.HighPart = created.dwHighDateTime;
-    if (!LobbyGuardStart(&config, &eligible, log_event)) {
+    if (!LobbyGuardStart(&config, &eligible, log_event, dll_hash, manifest_hash)) {
         log_event("LOBBY_GUARD_INSTALL_FAILED");
         return 3;
     }
     log_event("LOBBY_GUARD_INSTALLED");
+    DWORD stability_status = StabilityGuardStart(self_module, log_event);
+    if (stability_status != ERROR_SUCCESS || !StabilityGuardInstalled() || StabilityGuardVerify() != ERROR_SUCCESS) {
+        if (StabilityGuardSafeToLog()) {
+            char failure[128];
+            snprintf(failure, sizeof(failure), "STABILITY_GUARD_INSTALL_FAILED status=%lu", (unsigned long)stability_status);
+            log_event(failure);
+        }
+        return 4;
+    }
+    log_event("STABILITY_GUARD_INSTALLED");
     log_event("WORKER_STARTED");
     while (WaitForSingleObject(stop_event, 0) != WAIT_OBJECT_0) {
+        if (!StabilityGuardInstalled() || StabilityGuardVerify() != ERROR_SUCCESS) {
+            InterlockedExchange(&eligible, 0);
+            log_event("STABILITY_GUARD_LOST");
+            break;
+        }
         HANDLE pipe = CreateFileW(config.pipe_path, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
         if (pipe == INVALID_HANDLE_VALUE) { WaitForSingleObject(stop_event, 2000); continue; }
         DWORD mode = PIPE_READMODE_MESSAGE;
@@ -81,12 +97,22 @@ static DWORD WINAPI worker(void *unused) {
         ok = length > 0 && length < (int)sizeof(message) && hmac_message(config.secret, message, proof);
         if (ok) { strcat(message, "|"); strcat(message, proof); ok = send_message(pipe, message) && receive_message(pipe, message, sizeof(message)); }
         if (ok && strncmp(message, "ACCEPT|", 7) == 0) {
+            if (!StabilityGuardInstalled() || StabilityGuardVerify() != ERROR_SUCCESS) {
+                CloseHandle(pipe);
+                log_event("STABILITY_GUARD_LOST");
+                break;
+            }
             char lease[128];
             strncpy(lease, message + 7, sizeof(lease) - 1);
             lease[sizeof(lease) - 1] = 0;
             InterlockedExchange(&eligible, 1);
             log_event("VERIFIED_ELIGIBLE");
             while (WaitForSingleObject(stop_event, config.heartbeat_ms) != WAIT_OBJECT_0) {
+                if (!StabilityGuardInstalled() || StabilityGuardVerify() != ERROR_SUCCESS) {
+                    InterlockedExchange(&eligible, 0);
+                    log_event("STABILITY_GUARD_LOST");
+                    break;
+                }
                 snprintf(message, sizeof(message), "HEARTBEAT|%s", lease);
                 if (!send_message(pipe, message) || !receive_message(pipe, message, sizeof(message)) || strcmp(message, "ALIVE") != 0) break;
             }
@@ -122,6 +148,8 @@ __declspec(dllexport) DWORD WINAPI AdmissionStart(void *pointer) {
 __declspec(dllexport) DWORD WINAPI AdmissionStop(void *unused) { (void)unused; InterlockedExchange(&eligible, 0); LobbyGuardStop(); if (stop_event) SetEvent(stop_event); return 0; }
 __declspec(dllexport) DWORD WINAPI AdmissionEligible(void *unused) { (void)unused; return (DWORD)InterlockedCompareExchange(&eligible, 0, 0); }
 __declspec(dllexport) DWORD WINAPI AdmissionLobbyState(void *unused) { (void)unused; return LobbyGuardState(); }
+__declspec(dllexport) DWORD WINAPI AdmissionStabilityState(void *unused) { (void)unused; return StabilityGuardInstalled() && StabilityGuardVerify() == ERROR_SUCCESS ? 1u : 0u; }
+__declspec(dllexport) DWORD WINAPI AdmissionStabilityStats(void *destination) { return StabilityGuardGetStats(destination); }
 
 BOOL WINAPI DllMain(HINSTANCE module, DWORD reason, LPVOID reserved) {
     (void)reserved;

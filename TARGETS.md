@@ -10,6 +10,25 @@ Preferred image base is `0x140000000`. Every address below is an RVA unless expl
 
 Research references below are relative to the original read-only `hoi4-decompiled/` analysis tree. That tree is external research material, rather than a runtime or build dependency. Discovery also read the installed executable's PE sections and instruction bytes. No prior injectable was loaded or imported.
 
+## Current peer admission (v0.4.0)
+
+This release replaces the historical local-ticket data plane documented below. Local named pipes still verify each local process; admission between computers is a cooperative peer handshake over existing channel 1, with no broker or common local session credentials.
+
+A fourth atomic vtable replacement handles `CProxyServer` slot 27: slot RVA `0x2b53670`, original target `0x236afe0`. Its ABI is the same five-argument packet callback as the host callback. Required 32-byte prefix:
+
+```text
+48 89 5c 24 10 48 89 74 24 18 4c 89 4c 24 20 57
+41 54 41 55 41 56 41 57 b8 50 16 00 00 e8 9e fa
+```
+
+The base constructor registers thunk RVA `0x2363860`, which dynamically dispatches `[vtable+0xd8]`; the derived proxy constructor installs its own vtable. Late replacement therefore reaches already registered callbacks. Source references: `part_0089.c`, `FUN_142362fd0`, `FUN_1423690f0`, `FUN_14236afe0`. The native message-name switch `FUN_142365860` names IDs 0–35; custom types `0x48345043` and `0x48345052` are intercepted by both wrappers before original dispatch.
+
+The 112-byte join offer consists of magic `H4PEER1\0`, peer version 1, original length, 32-byte client nonce, DLL SHA256 and manifest SHA256. The host keeps a private bounded copy of the original packet and sends a 152-byte challenge. Its fields are type, zero reserved, magic, version, native join type, client nonce, host nonce, original packet digest and a zero proof field. The client confirms only a pending local offer while locally eligible, and returns the public SHA256 confirmation with response type. Proof domain is `HOI4-PEER-PROOF-V1`, followed by the first 120 challenge bytes and the two build hashes. There is no embedded secret or claimed remote attestation.
+
+State is bound to the callback object and the transport-owned connection. Responses arrive on later transport callbacks; no callback blocks waiting for a peer. Successful consumption invokes the original host callback once with the saved original bytes. Plain/invalid offers use existing native denial; stale responses are logged and dropped so they cannot send a refusal after an already completed join. All other messages and channels pass through. Bounds are 64 pending slots per role, 65,536 bytes including the offer, and ten seconds on a monotonic clock. See `native/peer_protocol.h` for exact wire layouts and replay bounds.
+
+The original three targets, transport copy-ownership evidence and native denial ABI below still apply. The old 96-byte `H4ADMIT2` trailer and service-owned ticket lookup are historical v0.3 behavior, and are not accepted by peer v1.
+
 ## Three atomic pointer replacements
 
 | Role | Class vtable | Slot | Slot RVA | Original target RVA | Preferred-image slot bytes |
@@ -134,3 +153,9 @@ Synthetic tests establish atomic pointer publication, pass-through callback owne
 Live CFG inspection on the tested process found CFG and strict mode disabled. The game has GuardFlags `0x100`, no guard-function table entries, and guard-check target `0x12a2c0` is `c2 00 00` (`ret 0`) followed by padding. The Zig DLL has no CFG load-config directory. No mitigation policy was modified. Recheck compatibility if the executable or process policy changes.
 
 Runtime slot inspection proves that callbacks are installed. Actual lobby enforcement additionally requires an observed plain-client rejection and verified-client acceptance in the game's join path. Generating a lobby ID or displaying a service lease alone does not establish those outcomes.
+
+## Stability guard target
+
+The stability guard also requires the exact supported HOI4 1.19.3.0 Windows x64 executable hash listed above (`7dc947be34970da1e1c787bcddbe7f62b610ff258aebf8f06aa8b348f3a031d5`). It checks the five-byte CALL at RVA `0x1d6001` (`e8 fa 23 00 00`) and the expected scheduler and native-kernel instruction bytes before installing its relay. Target constants and fingerprints are in `native/stability/target_spec.h`.
+
+When career-profile country tags contain duplicates, the wrapper invokes the native kernel synchronously across the full original list, retaining repeated entries, order, and weighting while preventing same-country workers from overlapping. Unique-tag lists use the original scheduler. The hook's code and relay remain resident until process exit. This section documents the target contract, not a live campaign test; the standalone authored fixtures and their limits are recorded in `VALIDATION.md`. The separate army modifier teardown path is not patched. See [STABILITY-PROVENANCE.md](STABILITY-PROVENANCE.md) for the port source and integration lifecycle.
