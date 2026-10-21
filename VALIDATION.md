@@ -1,5 +1,17 @@
 # Validation
 
+## Development module v0.5.0: host command authorization
+
+The Windows x64 module builds with warnings treated as errors. The complete standalone suite passed. Latest authorization runs passed 241 policy assertions, 8,530 provenance assertions, 17 policy/adapter helper assertions, 16,461 actual native-wrapper assertions and 444 country/equipment/diagnostic wrapper assertions. The last focused run includes the diagnostic reason-range fix after the complete suite run.
+
+The authored private-image fixtures exercise the real wrappers at the verified native return sites. They cover receive admission, AL-only native booleans, motivation arguments, full-pointer destructor/getter returns, controlled and foreign actors, native null-country refusal, capacity exhaustion, early history versus hotjoin/post-execution history, stale epochs, object reuse, load-task return/peer retention, host-local co-op approval by a remote leader, and multiple queued same-source script changes. Equipment fixtures check typed reference safety, unsigned level 255, unchanged inherited levels, native refusal of changed levels, new-key anti-bypass, duplicate/descending keys, signed counts, capacity, address overflow and full-width equipment-type pointers. Native game predicates are mocked in those fixtures; this does not establish a successful real equipment-designer operation.
+
+Existing admission and stability regressions also passed: 16 lobby-wrapper cases/170 assertions, 1,153 peer protocol checks, delayed two-process UDP loopback, native/managed cryptographic agreement, concurrent vtable publication, 127 career regression assertions and the hook transaction/poisoned-transaction tests.
+
+On 21 October 2026, the published injector automatically loaded the final candidate into an isolated real HOI4 process. Read-only inspection verified all 71 authorization slots and original code fingerprints, four lobby slots, the stability CALL/relay, restored page protections and a current local verification lease. The loaded DLL matched the packaged build exactly: SHA256 `a3377eca8f4470fdc933fb2ac280514baa7ac70f83e955126a02993ad9fcd5a2`. This establishes loading and installation; it does not establish remote command rejection in a multiplayer match.
+
+**Live gameplay compatibility, local multiplayer outcomes, separate-network joining and campaign overhead remain unverified for v0.5.0.** The guard covers 22 reviewed command classes and a narrow same-type upgrade-level subset. It does not validate all equipment prices/statistics, unreviewed command families or arbitrary local memory edits. See [AUTHORIZATION.md](AUTHORIZATION.md).
+
 ## Module v0.4.0: direct peer admission and combined stability guard
 
 The complete Windows module builds with warnings treated as errors. The suite passes 14 local verification policy checks, 26 retained legacy local-ticket store checks, native/managed HMAC agreement, concurrent atomic vtable publication, 15 current peer-wrapper cases with 155 assertions, and 1,153 peer protocol checks. Peer cases exercise exact original-packet forwarding only after a matching response, plain/build-mismatched refusal, fresh outgoing nonces, connection/object/type/payload binding, malformed/truncated input, monotonic expiry, replayed offers/responses, concurrency and bounded replay-state exhaustion with automatic recovery.

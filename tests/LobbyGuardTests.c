@@ -2,6 +2,7 @@
 #include "../native/lobby_guard.c"
 
 static unsigned assertions, cases, sends, receives, proxy_receives, denials;
+static unsigned command_receives;
 static volatile LONG verified = 1;
 static int client_marker, host_marker;
 static unsigned char sent[PEER_MAX_PACKET], delivered[PEER_MAX_PACKET];
@@ -22,6 +23,11 @@ static void receive_stub(void *s, const void *p, uint32_t n, uintptr_t c, int ch
 static void proxy_stub(void *s, const void *p, uint32_t n, uintptr_t c, int channel) {
     (void)p; (void)n; (void)c; (void)channel; CHECK(s == &client_marker); ++proxy_receives;
 }
+static void command_stub(LobbyPacketCallback callback, void *s, const void *p, uint32_t n, uintptr_t c, int channel) {
+    CHECK(channel == 0); CHECK(callback == receive_stub);
+    ++command_receives;
+    callback(s, p, n, c, channel);
+}
 static void deny_stub(void *s, int type, uintptr_t c) {
     CHECK(s == &host_marker); CHECK(type == 33 || type == 11 || type == 16); CHECK(c == 101 || c == 999);
     ++denials;
@@ -34,6 +40,7 @@ static void begin(const char *name) {
     PeerClientInit(&peer_client,dll,manifest); PeerHostInit(&peer_host,dll,manifest); initialized=1;
     case_name=name; ++cases; verified=1; stopped=0; client_eligible=&verified;
     sends=receives=proxy_receives=denials=0; rejected=accepted=decorated=0;
+    command_receives=0; command_receiver=NULL;
     original_receive=receive_stub; original_client_receive=proxy_stub; original_send=send_stub;
     native_deny=deny_stub; guard_log=logger; last_event[0]=0;
 }
@@ -101,7 +108,18 @@ int main(void) {
     guarded_receive(&host_marker,p,sizeof(p),101,0); CHECK(receives==1 && denials==0);
     uint32_t kind=PEER_MESSAGE_CHALLENGE; memcpy(p,&kind,4);
     guarded_client_receive(&client_marker,p,sizeof(p),202,0); CHECK(proxy_receives==1);
+    begin("host commands enter authorization while peer and proxy traffic retain their paths");
+    CHECK(!LobbyGuardSetCommandReceiver(NULL));
+    CHECK(LobbyGuardSetCommandReceiver(command_stub));
+    guarded_receive(&host_marker,p,sizeof(p),101,0);
+    CHECK(command_receives==1 && receives==1 && delivered_size==sizeof(p) && !memcmp(p,delivered,sizeof(p)));
+    guarded_client_receive(&client_marker,p,sizeof(p),202,0);
+    CHECK(command_receives==1 && proxy_receives==1);
+    join_packet(p,17); guarded_receive(&host_marker,p,sizeof(p),101,1);
+    CHECK(command_receives==1 && receives==2);
+    installed=1; CHECK(!LobbyGuardSetCommandReceiver(command_stub)); installed=0;
     begin("malformed extension frames never reach game parser");
+    kind=PEER_MESSAGE_CHALLENGE; memcpy(p,&kind,4);
     guarded_receive(&host_marker,p,4,101,1); guarded_client_receive(&client_marker,p,4,202,1);
     CHECK(receives==0 && proxy_receives==0 && sends==0);
     begin("stop leaves host refusing new joins"); LobbyGuardStop(); join_packet(p,8);

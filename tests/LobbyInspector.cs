@@ -9,7 +9,8 @@ using HOI4Admission;
 public sealed class InspectedSlot
 {
     public string Name, SlotRva, SlotAddress, CurrentPointer, OriginalPointer, Protection, Error;
-    public bool PointsToOriginal, PointsToConfiguredDll, PointsToExecutableDll, Readable, PageProtectionRestored;
+    public string OriginalFingerprintExpected, OriginalFingerprintActual;
+    public bool PointsToOriginal, PointsToConfiguredDll, PointsToExecutableDll, Readable, PageProtectionRestored, OriginalFingerprintMatches;
 }
 
 public sealed class InspectedGame
@@ -18,10 +19,19 @@ public sealed class InspectedGame
     public long Creation;
     public bool IdentityStable, GamePathMatches, GameHashMatches, NativeDLLLoaded, DllHashMatches;
     public bool ServiceRecordMatches, ServiceVerified, HostGuardActive, ClientSendGuardActive, HostSendGuardActive, ClientReceiveGuardActive;
-    public bool VtablePagesRestored, AllHooksActive, AllGuardsActive;
+    public bool AuthorizationGuardActive, VtablePagesRestored, AllHooksActive, AllGuardsActive;
     public InspectedStabilityGuard StabilityGuard;
     public string Error;
     public InspectedSlot[] Slots = new InspectedSlot[0];
+    public InspectedSlot[] AuthorizationSlots = new InspectedSlot[0];
+}
+
+internal sealed class AuthorizationTarget
+{
+    public readonly string Name, Fingerprint;
+    public readonly uint VtableRva, Slot, OriginalRva;
+    public AuthorizationTarget(string name, uint vtableRva, uint slot, uint originalRva, string fingerprint)
+    { Name = name; VtableRva = vtableRva; Slot = slot; OriginalRva = originalRva; Fingerprint = fingerprint; }
 }
 
 public sealed class InspectedStabilityGuard
@@ -33,6 +43,83 @@ public sealed class InspectedStabilityGuard
 public static class LobbyInspector
 {
     private const string PinnedGameHash = "7dc947be34970da1e1c787bcddbe7f62b610ff258aebf8f06aa8b348f3a031d5";
+    // BEGIN AUTHORIZATION TARGETS
+    private static readonly AuthorizationTarget[] AuthorizationTargets =
+    {
+        new AuthorizationTarget("AddConstruction.Destructor", 0x2994770, 0, 0xdb4580, "40534883ec20488d053bcf96"),
+        new AuthorizationTarget("AddConstruction.IsValid", 0x2994770, 9, 0x11616f0, "48895c241048896c24185657"),
+        new AuthorizationTarget("AddConstruction.History", 0x2994770, 12, 0x11d220, "32c0c3cccccccccccccccccc"),
+        new AuthorizationTarget("AddProductionLine.Destructor", 0x2993708, 0, 0xdb45f0, "40534883ec20488d05cbce96"),
+        new AuthorizationTarget("AddProductionLine.IsValid", 0x2993708, 9, 0x11622f0, "48895c241048896c24184889"),
+        new AuthorizationTarget("AddProductionLine.History", 0x2993708, 12, 0x11d220, "32c0c3cccccccccccccccccc"),
+        new AuthorizationTarget("AddMassProductionsLine.Destructor", 0x29937d0, 0, 0x11490f0, "48895c240848897424105748"),
+        new AuthorizationTarget("AddMassProductionsLine.IsValid", 0x29937d0, 9, 0x1162260, "48895c240848897424105748"),
+        new AuthorizationTarget("AddMassProductionsLine.History", 0x29937d0, 12, 0x11d220, "32c0c3cccccccccccccccccc"),
+        new AuthorizationTarget("AddIdea.Destructor", 0x2995328, 0, 0xdb45f0, "40534883ec20488d05cbce96"),
+        new AuthorizationTarget("AddIdea.IsValid", 0x2995328, 9, 0x1161ac0, "40574883ec20803d5c0a2f02"),
+        new AuthorizationTarget("AddIdea.History", 0x2995328, 12, 0x11d220, "32c0c3cccccccccccccccccc"),
+        new AuthorizationTarget("RemoveIdea.Destructor", 0x2995648, 0, 0xdb45f0, "40534883ec20488d05cbce96"),
+        new AuthorizationTarget("RemoveIdea.IsValid", 0x2995648, 9, 0x1165950, "40574883ec20803dcccb2e02"),
+        new AuthorizationTarget("RemoveIdea.History", 0x2995648, 12, 0x11d220, "32c0c3cccccccccccccccccc"),
+        new AuthorizationTarget("ReplaceIdea.Destructor", 0x29958a0, 0, 0xdb4520, "40534883ec20488d059bcf96"),
+        new AuthorizationTarget("ReplaceIdea.IsValid", 0x29958a0, 9, 0x1165bf0, "48895c241048897424205748"),
+        new AuthorizationTarget("ReplaceIdea.History", 0x29958a0, 12, 0x11d220, "32c0c3cccccccccccccccccc"),
+        new AuthorizationTarget("SetResearch.Destructor", 0x2994f40, 0, 0xdb45f0, "40534883ec20488d05cbce96"),
+        new AuthorizationTarget("SetResearch.IsValid", 0x2994f40, 9, 0x1166bc0, "48895c241048897424205748"),
+        new AuthorizationTarget("SetResearch.History", 0x2994f40, 12, 0x11d220, "32c0c3cccccccccccccccccc"),
+        new AuthorizationTarget("UnlockResearch.Destructor", 0x2995008, 0, 0xdb45f0, "40534883ec20488d05cbce96"),
+        new AuthorizationTarget("UnlockResearch.IsValid", 0x2995008, 9, 0x1167fd0, "48895c241048897424205748"),
+        new AuthorizationTarget("UnlockResearch.History", 0x2995008, 12, 0x11d220, "32c0c3cccccccccccccccccc"),
+        new AuthorizationTarget("SetNationalFocus.Destructor", 0x2996458, 0, 0xdb4550, "40534883ec20488d056bcf96"),
+        new AuthorizationTarget("SetNationalFocus.IsValid", 0x2996458, 9, 0x1166830, "48895c240848897424105748"),
+        new AuthorizationTarget("SetNationalFocus.History", 0x2996458, 12, 0x11d220, "32c0c3cccccccccccccccccc"),
+        new AuthorizationTarget("SelectDecision.Destructor", 0x2996908, 0, 0xdb4550, "40534883ec20488d056bcf96"),
+        new AuthorizationTarget("SelectDecision.IsValid", 0x2996908, 9, 0x1165f10, "48895c2408574881ecf00000"),
+        new AuthorizationTarget("SelectDecision.History", 0x2996908, 12, 0x11d220, "32c0c3cccccccccccccccccc"),
+        new AuthorizationTarget("SelectTargetedDecision.Destructor", 0x29969d0, 0, 0xdb45f0, "40534883ec20488d05cbce96"),
+        new AuthorizationTarget("SelectTargetedDecision.IsValid", 0x29969d0, 9, 0x1166030, "48895c241048896c24184889"),
+        new AuthorizationTarget("SelectTargetedDecision.History", 0x29969d0, 12, 0x11d220, "32c0c3cccccccccccccccccc"),
+        new AuthorizationTarget("CreateEquipmentVariant.Destructor", 0x2a240c0, 0, 0x19a1de0, "48895c240848896c24104889"),
+        new AuthorizationTarget("CreateEquipmentVariant.IsValid", 0x2a240c0, 9, 0x19a5af0, "48895c241048897424185748"),
+        new AuthorizationTarget("CreateEquipmentVariant.History", 0x2a240c0, 12, 0x11d220, "32c0c3cccccccccccccccccc"),
+        new AuthorizationTarget("UpdateEquipmentVariant.Destructor", 0x2a24188, 0, 0x19a2150, "48895c240848896c24104889"),
+        new AuthorizationTarget("UpdateEquipmentVariant.IsValid", 0x2a24188, 9, 0x19a5e20, "48895c241055565741544155"),
+        new AuthorizationTarget("UpdateEquipmentVariant.History", 0x2a24188, 12, 0x11d220, "32c0c3cccccccccccccccccc"),
+        new AuthorizationTarget("SetCountryController.Destructor", 0x295e368, 0, 0x22d200, "40534883ec20488d05bb424f"),
+        new AuthorizationTarget("SetCountryController.IsValid", 0x295e368, 9, 0xcee530, "48895c241048896c24185657"),
+        new AuthorizationTarget("SetCountryController.History", 0x295e368, 12, 0x1807b0, "b001c3cccccccccccccccccc"),
+        new AuthorizationTarget("SetCountryController.Execute", 0x295e368, 10, 0xcece50, "48895c241848894c2408555657415441"),
+        new AuthorizationTarget("ChangeCountryController.Destructor", 0x2996390, 0, 0xdb4550, "40534883ec20488d056bcf96"),
+        new AuthorizationTarget("ChangeCountryController.IsValid", 0x2996390, 9, 0x1162b60, "40574883ec30803de5ef4702"),
+        new AuthorizationTarget("ChangeCountryController.History", 0x2996390, 12, 0x11d220, "32c0c3cccccccccccccccccc"),
+        new AuthorizationTarget("ChangeCountryController.Execute", 0x2996390, 10, 0x1153210, "48894c24085553565741544155415641"),
+        new AuthorizationTarget("AskToCoop.Destructor", 0x295e430, 0, 0x22d200, "40534883ec20488d05bb424f"),
+        new AuthorizationTarget("AskToCoop.IsValid", 0x295e430, 9, 0xcee2c0, "40534883ec30803d85388f02"),
+        new AuthorizationTarget("AskToCoop.History", 0x295e430, 12, 0x1807b0, "b001c3cccccccccccccccccc"),
+        new AuthorizationTarget("AskToCoop.Execute", 0x295e430, 10, 0xcec380, "48895c24085556574154415541564157"),
+        new AuthorizationTarget("SetMPDebugSettings.Destructor", 0x29e68a0, 0, 0x22d200, "40534883ec20488d05bb424f"),
+        new AuthorizationTarget("SetMPDebugSettings.IsValid", 0x29e68a0, 9, 0x1807b0, "b001c3cccccccccccccccccc"),
+        new AuthorizationTarget("SetMPDebugSettings.History", 0x29e68a0, 12, 0x1807b0, "b001c3cccccccccccccccccc"),
+        new AuthorizationTarget("CountryPriority1.Destructor", 0x272dac0, 0, 0x22d200, "40534883ec20488d05bb424f"),
+        new AuthorizationTarget("CountryPriority1.IsValid", 0x272dac0, 9, 0x1166710, "837928007e0983792c027703"),
+        new AuthorizationTarget("CountryPriority1.History", 0x272dac0, 12, 0x11d220, "32c0c3cccccccccccccccccc"),
+        new AuthorizationTarget("CountryPriority2.Destructor", 0x272db88, 0, 0x22d200, "40534883ec20488d05bb424f"),
+        new AuthorizationTarget("CountryPriority2.IsValid", 0x272db88, 9, 0x1166710, "837928007e0983792c027703"),
+        new AuthorizationTarget("CountryPriority2.History", 0x272db88, 12, 0x11d220, "32c0c3cccccccccccccccccc"),
+        new AuthorizationTarget("CountryPriority3.Destructor", 0x272dc50, 0, 0x22d200, "40534883ec20488d05bb424f"),
+        new AuthorizationTarget("CountryPriority3.IsValid", 0x272dc50, 9, 0x1166710, "837928007e0983792c027703"),
+        new AuthorizationTarget("CountryPriority3.History", 0x272dc50, 12, 0x11d220, "32c0c3cccccccccccccccccc"),
+        new AuthorizationTarget("CountryPriority4.Destructor", 0x272dd18, 0, 0x22d200, "40534883ec20488d05bb424f"),
+        new AuthorizationTarget("CountryPriority4.IsValid", 0x272dd18, 9, 0x1166710, "837928007e0983792c027703"),
+        new AuthorizationTarget("CountryPriority4.History", 0x272dd18, 12, 0x11d220, "32c0c3cccccccccccccccccc"),
+        new AuthorizationTarget("CountryPriority5.Destructor", 0x272dde0, 0, 0x22d200, "40534883ec20488d05bb424f"),
+        new AuthorizationTarget("CountryPriority5.IsValid", 0x272dde0, 9, 0x1166710, "837928007e0983792c027703"),
+        new AuthorizationTarget("CountryPriority5.History", 0x272dde0, 12, 0x11d220, "32c0c3cccccccccccccccccc"),
+        new AuthorizationTarget("WorldLoadTask.Execute", 0x2723ca0, 1, 0x1f71b0, "4883ec28488b4908e8a318fdff33c048"),
+        new AuthorizationTarget("ChangeTagEffect.TargetGetter", 0x276f848, 25, 0x1399890, "40534883ec2080796000488bda750f48"),
+    };
+    // END AUTHORIZATION TARGETS
+
     private const uint ProcessRead = 0x0010 | 0x0400, PageReadOnly = 0x02, PageGuard = 0x100, MemCommit = 0x1000;
 
     [StructLayout(LayoutKind.Sequential)]
@@ -108,10 +195,26 @@ public static class LobbyInspector
                 uint access = callback.Protect & 0xff;
                 result.PointsToExecutableDll = callback.State == MemCommit && callback.Type == 0x1000000 &&
                     unchecked((ulong)callback.AllocationBase.ToInt64()) == dllBase && (callback.Protect & PageGuard) == 0 &&
-                    (access == 0x10 || access == 0x20 || access == 0x40 || access == 0x80);
+                    (access == 0x10 || access == 0x20);
             }
         }
         return result;
+    }
+
+    private static InspectedSlot ReadAuthorizationSlot(IntPtr process, ulong gameBase, int gameSize,
+        ulong dllBase, int dllSize, AuthorizationTarget target)
+    {
+        var slot = ReadSlot(process, gameBase, gameSize, dllBase, dllSize, target.Name,
+            checked(target.VtableRva + target.Slot * 8), target.OriginalRva);
+        slot.OriginalFingerprintExpected = target.Fingerprint;
+        int length = target.Fingerprint.Length / 2;
+        if ((ulong)target.OriginalRva + (ulong)length > (ulong)gameSize)
+        { slot.Error = "FINGERPRINT_OUTSIDE_MAIN_IMAGE"; return slot; }
+        byte[] actual = ReadExact(process, gameBase + target.OriginalRva, (uint)length);
+        slot.OriginalFingerprintActual = BitConverter.ToString(actual).Replace("-", "").ToLowerInvariant();
+        slot.OriginalFingerprintMatches = slot.OriginalFingerprintActual == target.Fingerprint;
+        if (!slot.OriginalFingerprintMatches) slot.Error = "ORIGINAL_CODE_FINGERPRINT_DIFFERS";
+        return slot;
     }
 
     private static byte[] ReadExact(IntPtr process, ulong address, uint length)
@@ -191,11 +294,16 @@ public static class LobbyInspector
                     ReadSlot(handle, gameBase, game.ModuleMemorySize, dllBase, dllSize, "ClientReceiveGuard", 0x2b53670, 0x236afe0)
                 };
                 bool trustedDll = result.NativeDLLLoaded && result.DllHashMatches;
+                result.AuthorizationSlots = AuthorizationTargets.Select(target =>
+                    ReadAuthorizationSlot(handle, gameBase, game.ModuleMemorySize, dllBase, dllSize, target)).ToArray();
+                result.AuthorizationGuardActive = trustedDll && result.AuthorizationSlots.Length == 71 &&
+                    result.AuthorizationSlots.All(slot => slot.Readable && slot.PointsToExecutableDll &&
+                        slot.PageProtectionRestored && slot.OriginalFingerprintMatches && slot.Error == null);
                 result.HostGuardActive = trustedDll && result.Slots[0].PointsToExecutableDll;
                 result.ClientSendGuardActive = trustedDll && result.Slots[1].PointsToExecutableDll;
                 result.HostSendGuardActive = trustedDll && result.Slots[2].PointsToExecutableDll;
                 result.ClientReceiveGuardActive = trustedDll && result.Slots[3].PointsToExecutableDll;
-                result.VtablePagesRestored = result.Slots.All(slot => slot.Readable && slot.PageProtectionRestored);
+                result.VtablePagesRestored = result.Slots.Concat(result.AuthorizationSlots).All(slot => slot.Readable && slot.PageProtectionRestored);
                 result.StabilityGuard = ReadStabilityGuard(handle, gameBase, game.ModuleMemorySize, dllBase, dllSize);
                 result.IdentityStable = !process.HasExited && Creation(handle) == result.Creation && Files.Creation(process) == result.Creation;
                 ClientRecord record = snapshot == null || snapshot.Clients == null ? null : snapshot.Clients.FirstOrDefault(client =>
@@ -203,7 +311,7 @@ public static class LobbyInspector
                 result.ServiceRecordMatches = snapshot != null && snapshot.Running && snapshot.SessionId == config.SessionId && record != null;
                 result.ServiceVerified = result.ServiceRecordMatches && record.Eligible;
                 result.AllHooksActive = result.IdentityStable && result.HostGuardActive && result.ClientSendGuardActive && result.HostSendGuardActive && result.ClientReceiveGuardActive && result.VtablePagesRestored;
-                result.AllGuardsActive = result.AllHooksActive && trustedDll && result.StabilityGuard.Active;
+                result.AllGuardsActive = result.AllHooksActive && trustedDll && result.StabilityGuard.Active && result.AuthorizationGuardActive;
             }
         }
         catch (Exception error) { result.Error = error.GetType().Name; }
@@ -237,7 +345,7 @@ public static class LobbyInspector
             Console.WriteLine(Files.Json.Serialize(new
             {
                 CheckedUtc = DateTime.UtcNow.ToString("o"), ReadOnly = true,
-                Scope = "Read-only lobby and stability hook/module/lease inspection; does not prove campaign stability or lobby outcome",
+                Scope = "Read-only lobby, authorization and stability hook/module/lease inspection; does not prove multiplayer enforcement or campaign stability",
                 ServiceReachable = snapshot != null, ServiceError = serviceError, Games = games,
                 AllSelectedGamesHaveVerifiedHooks = pass
             }));

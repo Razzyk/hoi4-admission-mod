@@ -1,6 +1,7 @@
 #include "protocol.h"
 #include "lobby_guard.h"
 #include "stability/stability_guard.h"
+#include "authorization/authority_guard.h"
 
 static HMODULE self_module;
 static AdmissionConfig config;
@@ -49,6 +50,10 @@ static int receive_message(HANDLE pipe, char *text, DWORD capacity) {
     text[count] = 0;
     return 1;
 }
+static int required_guards_ready(void) {
+    return StabilityGuardInstalled() && StabilityGuardVerify() == ERROR_SUCCESS &&
+        AuthorityGuardInstalled() && AuthorityGuardVerify();
+}
 
 static DWORD WINAPI worker(void *unused) {
     (void)unused;
@@ -65,7 +70,13 @@ static DWORD WINAPI worker(void *unused) {
     ULARGE_INTEGER creation;
     creation.LowPart = created.dwLowDateTime;
     creation.HighPart = created.dwHighDateTime;
-    if (!LobbyGuardStart(&config, &eligible, log_event, dll_hash, manifest_hash)) {
+    if (!AuthorityGuardStart(log_event) || !AuthorityGuardInstalled() || !AuthorityGuardVerify()) {
+        log_event("AUTHORIZATION_GUARD_INSTALL_FAILED");
+        return 5;
+    }
+    log_event("AUTHORIZATION_GUARD_INSTALLED");
+    if (!LobbyGuardSetCommandReceiver(AuthorityGuardReceive) ||
+        !LobbyGuardStart(&config, &eligible, log_event, dll_hash, manifest_hash)) {
         log_event("LOBBY_GUARD_INSTALL_FAILED");
         return 3;
     }
@@ -82,9 +93,10 @@ static DWORD WINAPI worker(void *unused) {
     log_event("STABILITY_GUARD_INSTALLED");
     log_event("WORKER_STARTED");
     while (WaitForSingleObject(stop_event, 0) != WAIT_OBJECT_0) {
-        if (!StabilityGuardInstalled() || StabilityGuardVerify() != ERROR_SUCCESS) {
+        AuthorityGuardFlushDiagnostics();
+        if (!required_guards_ready()) {
             InterlockedExchange(&eligible, 0);
-            log_event("STABILITY_GUARD_LOST");
+            log_event("REQUIRED_GUARD_LOST");
             break;
         }
         HANDLE pipe = CreateFileW(config.pipe_path, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
@@ -97,9 +109,9 @@ static DWORD WINAPI worker(void *unused) {
         ok = length > 0 && length < (int)sizeof(message) && hmac_message(config.secret, message, proof);
         if (ok) { strcat(message, "|"); strcat(message, proof); ok = send_message(pipe, message) && receive_message(pipe, message, sizeof(message)); }
         if (ok && strncmp(message, "ACCEPT|", 7) == 0) {
-            if (!StabilityGuardInstalled() || StabilityGuardVerify() != ERROR_SUCCESS) {
+            if (!required_guards_ready()) {
                 CloseHandle(pipe);
-                log_event("STABILITY_GUARD_LOST");
+                log_event("REQUIRED_GUARD_LOST");
                 break;
             }
             char lease[128];
@@ -108,9 +120,10 @@ static DWORD WINAPI worker(void *unused) {
             InterlockedExchange(&eligible, 1);
             log_event("VERIFIED_ELIGIBLE");
             while (WaitForSingleObject(stop_event, config.heartbeat_ms) != WAIT_OBJECT_0) {
-                if (!StabilityGuardInstalled() || StabilityGuardVerify() != ERROR_SUCCESS) {
+                AuthorityGuardFlushDiagnostics();
+                if (!required_guards_ready()) {
                     InterlockedExchange(&eligible, 0);
-                    log_event("STABILITY_GUARD_LOST");
+                    log_event("REQUIRED_GUARD_LOST");
                     break;
                 }
                 snprintf(message, sizeof(message), "HEARTBEAT|%s", lease);
@@ -150,6 +163,12 @@ __declspec(dllexport) DWORD WINAPI AdmissionEligible(void *unused) { (void)unuse
 __declspec(dllexport) DWORD WINAPI AdmissionLobbyState(void *unused) { (void)unused; return LobbyGuardState(); }
 __declspec(dllexport) DWORD WINAPI AdmissionStabilityState(void *unused) { (void)unused; return StabilityGuardInstalled() && StabilityGuardVerify() == ERROR_SUCCESS ? 1u : 0u; }
 __declspec(dllexport) DWORD WINAPI AdmissionStabilityStats(void *destination) { return StabilityGuardGetStats(destination); }
+__declspec(dllexport) DWORD WINAPI AdmissionAuthorizationState(void *unused) { (void)unused; return AuthorityGuardInstalled() && AuthorityGuardVerify() ? 1u : 0u; }
+__declspec(dllexport) DWORD WINAPI AdmissionAuthorizationStats(void *destination) {
+    if (!destination) return ERROR_INVALID_PARAMETER;
+    AuthorityGuardGetStats((AuthorityGuardStats *)destination);
+    return ERROR_SUCCESS;
+}
 
 BOOL WINAPI DllMain(HINSTANCE module, DWORD reason, LPVOID reserved) {
     (void)reserved;

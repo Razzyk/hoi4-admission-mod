@@ -24,6 +24,12 @@ The same `HOI4Admission.dll` includes the [stability guard](https://github.com/R
 
 This is an experimental workaround for the targeted co-op career-profile race. **Army modifier-tree teardown is not patched; campaign crash reduction is unverified.** Source revision, port changes and installation safeguards are recorded in [STABILITY-PROVENANCE.md](STABILITY-PROVENANCE.md).
 
+## Development: host command authorization
+
+The 0.5.0 development build adds host authorization for 22 reviewed command classes. It checks the native transport sender against current country control, observes co-op approvals and scripted country changes, and refuses remote authority-settings commands before canonical broadcast/execution. Admission eligibility requires all three guards to install. The public 0.4.0 release does not include this feature.
+
+Same-type equipment updates also check changed matching upgrade levels against the native UI predicate, preserving unchanged inherited levels. This is partial command validation: it does not validate every equipment price or statistic, prevent another computer's local memory edits, or establish that every command family is protected. Native free-country and observer switching remain available. Live normal-play, co-op, save/load and multiplayer compatibility still require validation. See [AUTHORIZATION.md](AUTHORIZATION.md) for the precise coverage and limits.
+
 ## Install and update
 
 Download the [injector installer or portable release](https://github.com/Razzyk/hoi4-injector/releases/latest). Start it before HOI4; module updates come independently from this repository. Close **all** HOI4 instances before activating an update, then have every player use that release. The pinned executable hash must match; a game update requires a compatible module update.

@@ -17,6 +17,7 @@ static PacketCallback original_receive, original_client_receive;
 static SendPacket original_send;
 static DenyPacket native_deny;
 static LobbyLog guard_log;
+static LobbyCommandReceiver command_receiver;
 
 static volatile LONG64 rejected, accepted, decorated;
 
@@ -93,6 +94,10 @@ static void guarded_client_receive(void *server, const void *packet, uint32_t le
     if (!peer_message(server, packet, length, connection, channel, 0)) original_client_receive(server, packet, length, connection, channel);
 }
 static void guarded_receive(void *server, const void *packet, uint32_t length, uintptr_t connection, int channel) {
+    if (channel == 0 && command_receiver) {
+        command_receiver(original_receive, server, packet, length, connection, channel);
+        return;
+    }
     if (peer_message(server, packet, length, connection, channel, 1)) return;
     if (channel != 1 || !packet || length < 4 || !join_type(get32(packet))) {
         original_receive(server, packet, length, connection, channel); return;
@@ -105,6 +110,12 @@ static void guarded_receive(void *server, const void *packet, uint32_t length, u
     }
     original_send(server, challenge, sizeof(challenge), connection);
     event("LOBBY_PEER_CHALLENGED", type, connection, "AWAITING_PEER_CONFIRMATION");
+}
+int LobbyGuardSetCommandReceiver(LobbyCommandReceiver receiver) {
+    if (!receiver || InterlockedCompareExchange(&installed, 0, 0)) return 0;
+    command_receiver = receiver;
+    MemoryBarrier();
+    return 1;
 }
 int LobbyGuardStart(const AdmissionConfig *config, volatile LONG *eligible, LobbyLog logger, const char *dll_hash, const char *manifest_hash) {
     static const unsigned char callback_entry[32] = {0x48,0x8b,0xc4,0x48,0x89,0x58,0x08,0x4c,0x89,0x48,0x20,0x44,0x89,0x40,0x18,0x55,0x56,0x57,0x41,0x54,0x41,0x55,0x41,0x56,0x41,0x57,0x48,0x8d,0xa8,0x18,0xfa,0xff};

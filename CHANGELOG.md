@@ -1,3 +1,13 @@
+# v0.5.0 (development, unreleased)
+
+- Add host command authorization for 22 reviewed command classes, binding incoming commands to the native transport sender and checking current country control at ordered validation.
+- Observe native co-op approvals and scripted country changes; track private command provenance across queues, destruction, reconnects and world loads.
+- Prevent pending remote commands from entering early synchronization history before authorization. Keep the native hotjoin-eligibility and post-execution paths separate.
+- Check changed matching upgrade levels in same-type equipment updates with the native UI predicate; preserve unchanged inherited levels and continue validating known keys when new keys are present.
+- Require authorization hook installation alongside admission and stability, add bounded rejection diagnostics, and inspect all 71 authorization hook slots read-only.
+
+Coverage is partial. Equipment prices/statistics, other command families, hostile-client attestation and local memory edits remain outside these checks. Multiplayer campaign compatibility and overhead are unverified.
+
 # v0.4.0
 
 - Replace same-machine lobby tickets with a direct peer challenge over HOI4's existing multiplayer transport. Independent installations need no shared session configuration or external broker.

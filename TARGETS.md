@@ -159,3 +159,26 @@ Runtime slot inspection proves that callbacks are installed. Actual lobby enforc
 The stability guard also requires the exact supported HOI4 1.19.3.0 Windows x64 executable hash listed above (`7dc947be34970da1e1c787bcddbe7f62b610ff258aebf8f06aa8b348f3a031d5`). It checks the five-byte CALL at RVA `0x1d6001` (`e8 fa 23 00 00`) and the expected scheduler and native-kernel instruction bytes before installing its relay. Target constants and fingerprints are in `native/stability/target_spec.h`.
 
 When career-profile country tags contain duplicates, the wrapper invokes the native kernel synchronously across the full original list, retaining repeated entries, order, and weighting while preventing same-country workers from overlapping. Unique-tag lists use the original scheduler. The hook's code and relay remain resident until process exit. This section documents the target contract, not a live campaign test; the standalone authored fixtures and their limits are recorded in `VALIDATION.md`. The separate army modifier teardown path is not patched. See [STABILITY-PROVENANCE.md](STABILITY-PROVENANCE.md) for the port source and integration lifecycle.
+
+## Development authorization target contracts
+
+The 0.5.0 development guard uses the same pinned executable. Its reviewed class table in `native/authorization/authority_guard.c` records each vtable RVA, original target and instruction fingerprint. For each of 22 classes, slots 0, 9 and 12 wrap destruction, native validity and synchronization-history eligibility. Three country/co-op classes also wrap slot 10 execution. A unique world-load task slot and the native scripted target getter bring the total to 71 pointer hooks. `tests/LobbyInspector.cs` independently lists and checks all 71 targets, original code fingerprints and restored read-only table pages.
+
+| Native call boundary | Return RVA | Additional behavior |
+|---|---:|---|
+| Host receive validity | `0x236795c` | Capture the exact accepted object and transport-resolved sender. |
+| Ordered synchronous validity | `0x22530ef` | Apply current host authorization before canonical serialization/broadcast and execution. |
+| Ordered asynchronous validity | `0x2250dbd` | Apply authorization before execution. |
+| Motivation retry | `0x22536df` | Preserve a cached refusal and native invalidity. |
+| Early reentrant history predicate | `0x225381d` | Suppress copying an unaccepted remote object into history. |
+| Post-execution history predicate | `0x22534b7` | Preserve native history behavior. |
+| Hotjoin eligibility predicate | `0x2252f6e` | Preserve the distinct native eligibility check. |
+| Scripted change-tag target getter | `0x34f293` | Observe the existing result exactly once; preserve its return value and RNG behavior. |
+
+The early-history predicate occurs earlier in control flow despite its numerically larger RVA. It must not be mistaken for the post-execution path.
+
+Validity returns an unsigned byte in AL and accepts `(command, motivation)`. A deleting destructor accepts `(command, unsigned flags)` and returns a full pointer. The script getter accepts `(effect, int32_t *outputTag, scope)` and returns a full pointer; the destination tag is at `scope+8`. The unique world-load task at vtable RVA `0x2723ca0`, slot 1, is invoked by the TBB scheduler outside the main image; a game-image return-address filter would miss it.
+
+UpdateEquipmentVariant stores an embedded two-word native reference at `command+0x28`, rather than a pointer. Resolver RVA `0x221f310` receives the reference's address; the resolved variant's actor tag is at `+0x1c`. Current human identity, canonical-country comparison and availability are queried only with the reviewed ABI and bounded tags. Host-local co-op uses the current local human helper at RVA `0x1db8e0`, rather than assuming the host always has machine ID 1.
+
+These contracts establish specific hooks and validation boundaries. They do not establish complete payload validation, live multiplayer compatibility or protection against local memory edits. See [AUTHORIZATION.md](AUTHORIZATION.md).
