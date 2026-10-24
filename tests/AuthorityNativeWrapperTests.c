@@ -78,6 +78,21 @@ static void *__fastcall mock_destructor(void *command, unsigned int flags) {
 
 static void *fake_humans[8];
 static int fake_human_count;
+static void *fake_countries[8];
+static int fake_country_lookup_calls, fake_observer_predicate_calls;
+static int fake_country_lookup_missing;
+static void *__fastcall fake_country_lookup(int32_t *tag) {
+    ++fake_country_lookup_calls;
+    if (fake_country_lookup_missing || !tag || *tag < 0 || *tag >= 8) return NULL;
+    return fake_countries[*tag];
+}
+static unsigned char __fastcall fake_observer_eligible(void *country) {
+    int32_t value = 0;
+    ++fake_observer_predicate_calls;
+    if (!country) return 0;
+    memcpy(&value, (unsigned char *)country + 0x41c, sizeof(value));
+    return (unsigned char)(value < 1);
+}
 static void *__fastcall fake_human_lookup(void *world, int32_t machineId) {
     (void)world;
     for (int i = 0; i < fake_human_count; ++i) {
@@ -173,6 +188,8 @@ static void reset_fixture(uint64_t epoch) {
     expected_capture_answer = 1;
     fixture_sender_id = 1001;
     fake_human_count = 0;
+    fake_country_lookup_calls = fake_observer_predicate_calls = 0;
+    fake_country_lookup_missing = 0;
 }
 
 static void setup_private_image(void) {
@@ -180,7 +197,7 @@ static void setup_private_image(void) {
     imageBase = (unsigned char *)VirtualAlloc(NULL, reserveSize, MEM_RESERVE, PAGE_NOACCESS);
     if (!imageBase) { fprintf(stderr, "VirtualAlloc reserve failed\n"); ExitProcess(2); }
     imageSize = reserveSize;
-    const uint32_t pages[] = {0x0bb5000,0x1c9000,0x1e2000,
+    const uint32_t pages[] = {0x06fc000,0x0bb4000,0x0bb5000,0x1c9000,0x1e2000,
         0x2250000,0x2252000,0x2253000,0x2367000,0x332f000};
     for (size_t i = 0; i < sizeof(pages)/sizeof(pages[0]); ++i) {
         if (!VirtualAlloc(imageBase + pages[i], 0x1000, MEM_COMMIT, PAGE_READWRITE)) {
@@ -189,10 +206,12 @@ static void setup_private_image(void) {
     }
     emit_absolute_jump(imageBase + 0x1c9cd0, fake_human_lookup);
     emit_absolute_jump(imageBase + 0xbb52f0, fake_canonical_equal);
+    emit_absolute_jump(imageBase + 0xbb48f0, fake_country_lookup);
+    emit_absolute_jump(imageBase + 0x6fcfa0, fake_observer_eligible);
     emit_absolute_jump(imageBase + 0x1e2460, fake_native_available);
     set_private_pointer(0x332f260, NULL);
     DWORD oldProtect = 0;
-    const uint32_t codePages[] = {0x0bb5000,0x1c9000,0x1e2000,
+    const uint32_t codePages[] = {0x06fc000,0x0bb4000,0x0bb5000,0x1c9000,0x1e2000,
         0x2250000,0x2252000,0x2253000,0x2367000};
     /* Materialize each authenticated return site once, then seal every code
      * page RX before executing any fixture thunk. */
@@ -244,6 +263,7 @@ int main(void) {
     static unsigned char map[0x100];
     static unsigned char human[0xa0];
     static unsigned char secondHuman[0xa0];
+    static unsigned char countries[8][0x500];
     void *mapPointer = map;
     int32_t countryCount = 8;
     uintptr_t humansPointer = (uintptr_t)human;
@@ -254,6 +274,7 @@ int main(void) {
     memcpy(world + 0x104, &humanCount, sizeof(humanCount));
     set_private_pointer(0x332f260, world);
     fake_humans[0] = human; fake_humans[1] = secondHuman;
+    for (int i = 0; i < 8; ++i) fake_countries[i] = countries[i];
 
     void *motivation = (void *)(uintptr_t)0x12345678;
     void **command;

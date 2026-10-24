@@ -160,8 +160,9 @@ static unsigned assertions_country;
 int main(void) {
     setup_private_image();
     prepare_extra_image_sites();
-    static unsigned char world[0xb40], map[0x100];
+    static unsigned char world[0xb40], map[0x100], countries[8][0x500];
     static unsigned char humans[2][0xa0], variant[0x500];
+    for (int i = 0; i < 8; ++i) fake_countries[i] = countries[i];
     void *variantVtable = imageBase + 0x2951608;
     memcpy(variant, &variantVtable, sizeof(variantVtable));
     prepare_world(world, map, humans, 1);
@@ -213,6 +214,56 @@ int main(void) {
     C_CHECK(scriptGetterCalls == 2 && executeCalls == 2);
     for (size_t i = 0; i < AUTHORITY_POLICY_MAX_GRANTS; ++i)
         C_CHECK(!policy.grants[i].occupied || policy.grants[i].grant.peer.machineId != 1001);
+
+    case_name = "native country wrapper locks an active-game self-switch but retains observer country selection";
+    reset_fixture(711); set_fixture_human(humans[0], 1001, 1); fake_human_count = 1;
+    prepare_world(world, map, humans, 1); fixture_sender_id = 1001; senderResolver = noisy_sender_resolver;
+    classes[14].originalValid = mock_native_valid;
+    { unsigned char started = 1; memcpy(world + 0xa39, &started, sizeof(started)); }
+    void *countryChange = new_class_command(classes[14].vtableRva, 1001); C_CHECK(countryChange != NULL);
+    int32_t lockSource = 1, lockAffected = 1001, lockDestination = 3;
+    memcpy((unsigned char *)countryChange + 0x28, &lockDestination, sizeof(lockDestination));
+    memcpy((unsigned char *)countryChange + 0x2c, &lockSource, sizeof(lockSource));
+    memcpy((unsigned char *)countryChange + 0x30, &lockAffected, sizeof(lockAffected));
+    invoke_capture(countryChange, motivation, 0x9913);
+    C_CHECK(invoke_primary(countryChange, motivation) == 0);
+    C_CHECK(fake_country_lookup_calls == 1 && fake_observer_predicate_calls == 1);
+    set_fixture_human(humans[0], 1001, 0);
+    void *observerSelection = new_class_command(classes[14].vtableRva, 1001); C_CHECK(observerSelection != NULL);
+    memcpy((unsigned char *)observerSelection + 0x28, &lockDestination, sizeof(lockDestination));
+    memcpy((unsigned char *)observerSelection + 0x2c, &lockSource, sizeof(lockSource));
+    memcpy((unsigned char *)observerSelection + 0x30, &lockAffected, sizeof(lockAffected));
+    invoke_capture(observerSelection, motivation, 0x9913);
+    C_CHECK(invoke_primary(observerSelection, motivation) == 1);
+
+    case_name = "observer transition uses the native country predicate and unknown source is denied";
+    reset_fixture(712); set_fixture_human(humans[0], 1001, 1); fake_human_count = 1;
+    prepare_world(world, map, humans, 1); fixture_sender_id = 1001; senderResolver = noisy_sender_resolver;
+    classes[14].originalValid = mock_native_valid;
+    { unsigned char started = 1; memcpy(world + 0xa39, &started, sizeof(started)); }
+    countryChange = new_class_command(classes[14].vtableRva, 1001); C_CHECK(countryChange != NULL);
+    lockSource = 1; lockDestination = 0;
+    memcpy((unsigned char *)countryChange + 0x28, &lockDestination, sizeof(lockDestination));
+    memcpy((unsigned char *)countryChange + 0x2c, &lockSource, sizeof(lockSource));
+    memcpy((unsigned char *)countryChange + 0x30, &lockAffected, sizeof(lockAffected));
+    { int32_t living = 2; memcpy((unsigned char *)fake_countries[1] + 0x41c, &living, sizeof(living)); }
+    invoke_capture(countryChange, motivation, 0x9913);
+    C_CHECK(invoke_primary(countryChange, motivation) == 0);
+    { int32_t eligible = 0; memcpy((unsigned char *)fake_countries[1] + 0x41c, &eligible, sizeof(eligible)); }
+    countryChange = new_class_command(classes[14].vtableRva, 1001); C_CHECK(countryChange != NULL);
+    memcpy((unsigned char *)countryChange + 0x28, &lockDestination, sizeof(lockDestination));
+    memcpy((unsigned char *)countryChange + 0x2c, &lockSource, sizeof(lockSource));
+    memcpy((unsigned char *)countryChange + 0x30, &lockAffected, sizeof(lockAffected));
+    invoke_capture(countryChange, motivation, 0x9913);
+    C_CHECK(invoke_primary(countryChange, motivation) == 1);
+    fake_country_lookup_missing = 1;
+    countryChange = new_class_command(classes[14].vtableRva, 1001); C_CHECK(countryChange != NULL);
+    memcpy((unsigned char *)countryChange + 0x28, &lockDestination, sizeof(lockDestination));
+    memcpy((unsigned char *)countryChange + 0x2c, &lockSource, sizeof(lockSource));
+    memcpy((unsigned char *)countryChange + 0x30, &lockAffected, sizeof(lockAffected));
+    invoke_capture(countryChange, motivation, 0x9913);
+    C_CHECK(invoke_primary(countryChange, motivation) == 0);
+    C_CHECK(fake_country_lookup_calls == 3 && fake_observer_predicate_calls == 2);
 
     case_name = "UpdateEquipmentVariant resolves embedded native ref exactly once before actor authorization";
     reset_fixture(72); set_fixture_human(humans[0], 1001, 1); fake_human_count = 1;
@@ -464,13 +515,13 @@ int main(void) {
     case_name = "every rejection reason is bounded and drained by worker diagnostics";
     memset((void *)rejectionReasons, 0, sizeof(rejectionReasons));
     diagnosticCalls = 0; logCallback = diagnostic_probe;
-    for (int reason = AUTHORITY_REASON_NATIVE_INVALID; reason <= AUTHORITY_REASON_EQUIPMENT_LEVEL_INVALID; ++reason)
+    for (int reason = AUTHORITY_REASON_NATIVE_INVALID; reason <= AUTHORITY_REASON_IDEA_MUTATION_INVALID; ++reason)
         count_reason((AuthorityReason)reason);
     AuthorityGuardFlushDiagnostics();
-    C_CHECK(diagnosticCalls == AUTHORITY_REASON_EQUIPMENT_LEVEL_INVALID);
-    C_CHECK(strcmp(diagnosticLine, "AUTHORIZATION_REJECTED reason=equipment_level_invalid count=1") == 0);
+    C_CHECK(diagnosticCalls == AUTHORITY_REASON_IDEA_MUTATION_INVALID);
+    C_CHECK(strcmp(diagnosticLine, "AUTHORIZATION_REJECTED reason=idea_mutation_invalid count=1") == 0);
     AuthorityGuardFlushDiagnostics();
-    C_CHECK(diagnosticCalls == AUTHORITY_REASON_EQUIPMENT_LEVEL_INVALID);
+    C_CHECK(diagnosticCalls == AUTHORITY_REASON_IDEA_MUTATION_INVALID);
     logCallback = NULL;
 
     printf("PASS %u native country wrapper assertions\n", assertions_country);

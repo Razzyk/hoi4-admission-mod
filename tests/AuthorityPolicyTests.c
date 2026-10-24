@@ -131,14 +131,32 @@ int main(void) {
     facts.actorControlledBySender = AUTHORITY_TRUTH_FALSE;
     CHECK(evaluate(facts, 100).decision == AUTHORITY_DECISION_DENY);
 
-    begin("self to observer and unlocked native free country remain allowed");
+    begin("observer selection preserves native transition rules during a running game");
+    facts = remote_facts(); facts.sourceCountry = AUTHORITY_COUNTRY_OBSERVER;
+    facts.assignmentLockEnabled = AUTHORITY_TRUTH_TRUE;
+    facts.destinationNativeAvailable = AUTHORITY_TRUTH_TRUE;
+    facts.destinationUnoccupied = AUTHORITY_TRUTH_TRUE;
+    CHECK(evaluate(facts, 100).decision == AUTHORITY_DECISION_ALLOW);
     facts = remote_facts(); facts.destinationCountry = AUTHORITY_COUNTRY_OBSERVER;
     facts.assignmentLockEnabled = AUTHORITY_TRUTH_TRUE;
+    facts.sourceObserverEligible = AUTHORITY_TRUTH_FALSE;
+    CHECK(evaluate(facts, 100).decision == AUTHORITY_DECISION_DENY);
+    facts.sourceObserverEligible = AUTHORITY_TRUTH_TRUE;
     CHECK(evaluate(facts, 100).decision == AUTHORITY_DECISION_ALLOW);
+    facts.sourceObserverEligible = AUTHORITY_TRUTH_UNKNOWN;
+    CHECK(evaluate(facts, 100).decision == AUTHORITY_DECISION_DEFER);
+
+    facts.assignmentLockEnabled = AUTHORITY_TRUTH_FALSE;
+    facts.sourceObserverEligible = AUTHORITY_TRUTH_FALSE;
+    CHECK(evaluate(facts, 100).decision == AUTHORITY_DECISION_ALLOW);
+
+    begin("prematch free country selection remains available and active-game self switch is locked");
     facts = remote_facts(); facts.assignmentLockEnabled = AUTHORITY_TRUTH_FALSE;
     facts.destinationNativeAvailable = AUTHORITY_TRUTH_TRUE;
     facts.destinationUnoccupied = AUTHORITY_TRUTH_TRUE;
     CHECK(evaluate(facts, 100).decision == AUTHORITY_DECISION_ALLOW);
+    facts.assignmentLockEnabled = AUTHORITY_TRUTH_TRUE;
+    CHECK(evaluate(facts, 100).decision == AUTHORITY_DECISION_DENY);
     facts.destinationUnoccupied = AUTHORITY_TRUTH_FALSE;
     CHECK(evaluate(facts, 100).decision == AUTHORITY_DECISION_DENY);
 

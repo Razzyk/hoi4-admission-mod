@@ -14,6 +14,8 @@ $nativeSources = @(
     'native\admission.c', 'native\lobby_guard.c', 'native\vtable_hook.c',
     'native\stability\stability_guard.c', 'native\peer_protocol.c',
     'native\authorization\authority_policy.c', 'native\authorization\command_provenance.c',
+    'native\authorization\event_payload.c',
+    'native\authorization\factory_payload.c',
     'native\authorization\authority_guard.c'
 ) | ForEach-Object { Join-Path $PSScriptRoot $_ }
 & $Zig cc -target x86_64-windows-gnu -shared -std=c11 -O2 -Wall -Wextra -Werror -fno-fast-math -o $dll @nativeSources -lbcrypt

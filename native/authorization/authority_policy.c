@@ -263,10 +263,35 @@ static AuthorityResult country_change(AuthorityPolicy *policy,
     }
     if (facts->actorControlledBySender != AUTHORITY_TRUTH_TRUE)
         return result(AUTHORITY_DECISION_DEFER, AUTHORITY_REASON_FACTS_UNKNOWN);
-    if (facts->destinationCountry == AUTHORITY_COUNTRY_OBSERVER)
-        return result(AUTHORITY_DECISION_ALLOW, AUTHORITY_REASON_NONE);
     if (same_canonical)
         return result(AUTHORITY_DECISION_ALLOW, AUTHORITY_REASON_NONE);
+    /* Keep the native observer transitions: an observer can select an
+       available country during a running game, while a country can enter
+       observer only when HOI4's predicate for its current tag permits it. */
+    if (facts->sourceCountry == AUTHORITY_COUNTRY_OBSERVER) {
+        if (facts->destinationCountry == AUTHORITY_COUNTRY_OBSERVER)
+            return result(AUTHORITY_DECISION_ALLOW, AUTHORITY_REASON_NONE);
+        if (facts->destinationNativeAvailable == AUTHORITY_TRUTH_FALSE ||
+            facts->destinationUnoccupied == AUTHORITY_TRUTH_FALSE)
+            return result(AUTHORITY_DECISION_DENY, AUTHORITY_REASON_COUNTRY_CHANGE_UNAUTHORIZED);
+        if (facts->destinationNativeAvailable == AUTHORITY_TRUTH_TRUE &&
+            facts->destinationUnoccupied == AUTHORITY_TRUTH_TRUE)
+            return result(AUTHORITY_DECISION_ALLOW, AUTHORITY_REASON_NONE);
+        return result(AUTHORITY_DECISION_DEFER, AUTHORITY_REASON_FACTS_UNKNOWN);
+    }
+    if (facts->destinationCountry == AUTHORITY_COUNTRY_OBSERVER) {
+        /* The lock is a live-game rule. Keep the native prematch selection
+           path intact, but require the native predicate once play has begun. */
+        if (facts->assignmentLockEnabled == AUTHORITY_TRUTH_FALSE)
+            return result(AUTHORITY_DECISION_ALLOW, AUTHORITY_REASON_NONE);
+        if (facts->assignmentLockEnabled == AUTHORITY_TRUTH_UNKNOWN)
+            return result(AUTHORITY_DECISION_DEFER, AUTHORITY_REASON_FACTS_UNKNOWN);
+        if (facts->sourceObserverEligible == AUTHORITY_TRUTH_TRUE)
+            return result(AUTHORITY_DECISION_ALLOW, AUTHORITY_REASON_NONE);
+        if (facts->sourceObserverEligible == AUTHORITY_TRUTH_FALSE)
+            return result(AUTHORITY_DECISION_DENY, AUTHORITY_REASON_COUNTRY_CHANGE_UNAUTHORIZED);
+        return result(AUTHORITY_DECISION_DEFER, AUTHORITY_REASON_FACTS_UNKNOWN);
+    }
     if (facts->assignmentLockEnabled == AUTHORITY_TRUTH_TRUE)
         return result(AUTHORITY_DECISION_DENY, AUTHORITY_REASON_ASSIGNMENT_LOCKED);
     if (facts->destinationNativeAvailable == AUTHORITY_TRUTH_FALSE ||

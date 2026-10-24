@@ -1,6 +1,8 @@
 #include "authority_guard.h"
 #include "authority_policy.h"
 #include "command_provenance.h"
+#include "event_payload.h"
+#include "factory_payload.h"
 #include "../vtable_hook.h"
 #if defined(_MSC_VER)
 #include <intrin.h>
@@ -58,9 +60,9 @@ static CoveredClass classes[] = {
     {0x2994770,0xdb4580,0x11616f0,0x11d220,0,0x28,AUTHORITY_COMMAND_COUNTRY_ACTOR,"40534883ec20488d053bcf9601","48895c241048896c2418565741564883","32c0c3cccccccccccccccccccccccccc"},
     {0x2993708,0xdb45f0,0x11622f0,0x11d220,0,0x28,AUTHORITY_COMMAND_COUNTRY_ACTOR,"40534883ec20488d05cbce9601","48895c241048896c2418488974242057","32c0c3cccccccccccccccccccccccccc"},
     {0x29937d0,0x11490f0,0x1162260,0x11d220,0,0x28,AUTHORITY_COMMAND_COUNTRY_ACTOR,"48895c24084889742410574883ec20","48895c24084889742410574883ec2083","32c0c3cccccccccccccccccccccccccc"},
-    {0x2995328,0xdb45f0,0x1161ac0,0x11d220,0,0x28,AUTHORITY_COMMAND_COUNTRY_ACTOR,"40534883ec20488d05cbce9601","40574883ec20803d5c0a2f0200488bf9","32c0c3cccccccccccccccccccccccccc"},
-    {0x2995648,0xdb45f0,0x1165950,0x11d220,0,0x28,AUTHORITY_COMMAND_COUNTRY_ACTOR,"40534883ec20488d05cbce9601","40574883ec20803dcccb2e0200488bf9","32c0c3cccccccccccccccccccccccccc"},
-    {0x29958a0,0xdb4520,0x1165bf0,0x11d220,0,0x28,AUTHORITY_COMMAND_COUNTRY_ACTOR,"40534883ec20488d059bcf9601","48895c24104889742420574883ec2083","32c0c3cccccccccccccccccccccccccc"},
+    {0x2995328,0xdb45f0,0x1161ac0,0x11d220,0,0x28,AUTHORITY_COMMAND_IDEA_MUTATION,"40534883ec20488d05cbce9601","40574883ec20803d5c0a2f0200488bf9","32c0c3cccccccccccccccccccccccccc"},
+    {0x2995648,0xdb45f0,0x1165950,0x11d220,0,0x28,AUTHORITY_COMMAND_IDEA_MUTATION,"40534883ec20488d05cbce9601","40574883ec20803dcccb2e0200488bf9","32c0c3cccccccccccccccccccccccccc"},
+    {0x29958a0,0xdb4520,0x1165bf0,0x11d220,0,0x28,AUTHORITY_COMMAND_IDEA_MUTATION,"40534883ec20488d059bcf9601","48895c24104889742420574883ec2083","32c0c3cccccccccccccccccccccccccc"},
     {0x2994f40,0xdb45f0,0x1166bc0,0x11d220,0,0x28,AUTHORITY_COMMAND_COUNTRY_ACTOR,"40534883ec20488d05cbce9601","48895c24104889742420574883ec2048","32c0c3cccccccccccccccccccccccccc"},
     {0x2995008,0xdb45f0,0x1167fd0,0x11d220,0,0x28,AUTHORITY_COMMAND_COUNTRY_ACTOR,"40534883ec20488d05cbce9601","48895c24104889742420574883ec2048","32c0c3cccccccccccccccccccccccccc"},
     {0x2996458,0xdb4550,0x1166830,0x11d220,0,0x28,AUTHORITY_COMMAND_COUNTRY_ACTOR,"40534883ec20488d056bcf9601","48895c24084889742410574883ec4048","32c0c3cccccccccccccccccccccccccc"},
@@ -76,7 +78,10 @@ static CoveredClass classes[] = {
     {0x272db88,0x22d200,0x1166710,0x11d220,0,0x28,AUTHORITY_COMMAND_COUNTRY_ACTOR,"40534883ec20488d05bb424f02","837928007e0983792c027703b001c332","32c0c3cccccccccccccccccccccccccc"},
     {0x272dc50,0x22d200,0x1166710,0x11d220,0,0x28,AUTHORITY_COMMAND_COUNTRY_ACTOR,"40534883ec20488d05bb424f02","837928007e0983792c027703b001c332","32c0c3cccccccccccccccccccccccccc"},
     {0x272dd18,0x22d200,0x1166710,0x11d220,0,0x28,AUTHORITY_COMMAND_COUNTRY_ACTOR,"40534883ec20488d05bb424f02","837928007e0983792c027703b001c332","32c0c3cccccccccccccccccccccccccc"},
-    {0x272dde0,0x22d200,0x1166710,0x11d220,0,0x28,AUTHORITY_COMMAND_COUNTRY_ACTOR,"40534883ec20488d05bb424f02","837928007e0983792c027703b001c332","32c0c3cccccccccccccccccccccccccc"}
+    {0x272dde0,0x22d200,0x1166710,0x11d220,0,0x28,AUTHORITY_COMMAND_COUNTRY_ACTOR,"40534883ec20488d05bb424f02","837928007e0983792c027703b001c332","32c0c3cccccccccccccccccccccccccc"},
+    {0x2938e60,0xa0d450,0x153afb0,0x11d220,0,0x34,AUTHORITY_COMMAND_EVENT_OPTION,"48895c2408574883ec20488bf98bda48","48895c241048896c2418488974242057","32c0c3cccccccccccccccccccccccccc"},
+    {0x2994db0,0xdb4550,0x1162420,0x11d220,0,0,AUTHORITY_COMMAND_FACTORY_PAYLOAD,"40534883ec20488d056bcf96","48895c2408574883ec20488bf9","32c0c3cccccccccccccccccccccccccc"},
+    {0x2993a28,0x1149060,0x1161be0,0x11d220,0,0,AUTHORITY_COMMAND_FACTORY_PAYLOAD,"48895c24084889742410574883","48895c241048896c2418488974242057","32c0c3cccccccccccccccccccccccccc"}
 };
 #pragma clang diagnostic pop
 
@@ -109,7 +114,7 @@ static volatile LONG64 epochCounter = AUTH_EPOCH_INITIAL;
 static volatile LONG64 peerGenerationCounter;
 static volatile LONG active, stopped, stateValue;
 static volatile LONG64 stats[16];
-static volatile LONG64 rejectionReasons[AUTHORITY_REASON_EQUIPMENT_LEVEL_INVALID + 1];
+static volatile LONG64 rejectionReasons[AUTHORITY_REASON_FACTORY_PAYLOAD_INVALID + 1];
 static AuthorityGuardLogger logCallback;
 static __thread IngressScope ingress;
 static SenderResolverFn senderResolver;
@@ -120,7 +125,7 @@ static volatile LONG64 nextGrantId;
 static uint64_t current_epoch(void) { return (uint64_t)InterlockedCompareExchange64(&epochCounter, 0, 0); }
 static void inc_stat(size_t index) { if (index < 16) InterlockedIncrement64(&stats[index]); }
 static void count_reason(AuthorityReason reason) {
-    if (reason > AUTHORITY_REASON_NONE && reason <= AUTHORITY_REASON_EQUIPMENT_LEVEL_INVALID)
+    if (reason > AUTHORITY_REASON_NONE && reason <= AUTHORITY_REASON_FACTORY_PAYLOAD_INVALID)
         InterlockedIncrement64(&rejectionReasons[reason]);
 }
 
@@ -273,6 +278,28 @@ static int native_available(void *world, int32_t country) {
         ((Availability)(imageBase + 0x1e2460))(world, &country) != 0;
 }
 
+static AuthorityTruth game_started(void *world) {
+    /* CCurrentGameState::HasGameStarted reads this byte; its native setter is
+       0x1edff0. Both offsets are bound to the exact GAME_SHA256 image at start. */
+    u8 started = 0;
+    if (!world || !copy_from_process((u8 *)world + 0xa39, &started, sizeof(started)))
+        return AUTHORITY_TRUTH_UNKNOWN;
+    return started ? AUTHORITY_TRUTH_TRUE : AUTHORITY_TRUTH_FALSE;
+}
+
+static AuthorityTruth native_observer_eligible(void *world, int32_t country) {
+    typedef void *(__fastcall *CountryLookup)(int32_t *);
+    typedef unsigned char (__fastcall *ObserverEligible)(void *);
+    if (!world || !country_tag_valid(world, country)) return AUTHORITY_TRUTH_UNKNOWN;
+    /* The pinned game's tag lookup resolves aliases to their native country;
+       0x6fcfa0 is the game's predicate `*(int *)(country + 0x41c) < 1`.
+       The image hash check in AuthorityGuardStart rejects unknown builds. */
+    void *nativeCountry = ((CountryLookup)(imageBase + 0xbb48f0))(&country);
+    if (!nativeCountry) return AUTHORITY_TRUTH_UNKNOWN;
+    return ((ObserverEligible)(imageBase + 0x6fcfa0))(nativeCountry) ?
+        AUTHORITY_TRUTH_TRUE : AUTHORITY_TRUTH_FALSE;
+}
+
 static int country_has_other_human(void *world, int32_t country, int32_t affected) {
     uintptr_t records = 0;
     int32_t count = 0;
@@ -416,6 +443,63 @@ static int read_upgrade_definition_id(void *definition, int32_t *outId) {
         copy_from_process((const void *)(address + 8), outId, sizeof(*outId));
 }
 
+static uint32_t idea_cost_flag_offset(const CoveredClass *row) {
+    if (!row) return 0;
+    if (row->vtableRva == 0x2995328 || row->vtableRva == 0x2995648) return 0x38;
+    if (row->vtableRva == 0x29958a0) return 0x40;
+    return 0;
+}
+
+static int read_value_at(const void *base, uintptr_t offset, void *out, size_t size) {
+    uintptr_t address = (uintptr_t)base;
+    if (!base || !out || !size || offset > UINTPTR_MAX - size ||
+        address > UINTPTR_MAX - offset - size) return 0;
+    return copy_from_process((const void *)(address + offset), out, size);
+}
+
+static int read_pointer_at(const void *base, uintptr_t offset, void **out) {
+    return read_value_at(base, offset, out, sizeof(*out));
+}
+
+/* Safely follows idea -> category -> group metadata. This implements the
+ * exclusions confirmed in native politics eligibility 0x15ea750 (type 1
+ * national spirits and hidden groups). That UI function is not called here.
+ * The exact GAME_SHA256 check binds these offsets to the reviewed image. */
+static int idea_reference_selectable(void *idea) {
+    void *category = NULL, *group = NULL;
+    int32_t groupType = -1;
+    u8 hidden = 0;
+    if (!read_pointer_at(idea, 0xaa0, &category) || !category ||
+        !read_pointer_at(category, 0x60, &group) || !group) return 0;
+    if (!read_value_at(group, 0x78, &groupType, sizeof(groupType)) ||
+        !read_value_at(group, 0x7c, &hidden, sizeof(hidden))) return 0;
+    return groupType != 1 && hidden == 0;
+}
+
+static int idea_references_preflight(const CoveredClass *row, const void *command) {
+    uint32_t ideaOffsets[2] = {0, 0};
+    size_t ideaCount = 0;
+    if (!row || !command) return 0;
+    if (row->vtableRva == 0x2995328 || row->vtableRva == 0x2995648) {
+        ideaOffsets[ideaCount++] = 0x30;
+    } else if (row->vtableRva == 0x29958a0) {
+        ideaOffsets[ideaCount++] = 0x30;
+        ideaOffsets[ideaCount++] = 0x38;
+    } else return 0;
+    for (size_t i = 0; i < ideaCount; ++i) {
+        void *idea = NULL;
+        if (!read_pointer_at(command, ideaOffsets[i], &idea) || !idea ||
+            !idea_reference_selectable(idea)) return 0;
+    }
+    return 1;
+}
+
+static int idea_command_cost_is_paid(const CoveredClass *row, const void *command) {
+    u8 costFlag = 0;
+    uint32_t offset = idea_cost_flag_offset(row);
+    return offset && read_value_at(command, offset, &costFlag, sizeof(costFlag)) && costFlag == 1;
+}
+
 static int resolve_update_variant(void *command, void *world, void **outVariant, int32_t *outActor) {
     typedef void *(__fastcall *ResolveVariantFn)(void *);
     if (!command || !world || !outVariant || !outActor) return 0;
@@ -530,6 +614,23 @@ static AuthorityResult evaluate_remote(CoveredClass *row, void *command,
             return (AuthorityResult){AUTHORITY_DECISION_DENY, AUTHORITY_REASON_FACTS_UNKNOWN, 0};
         return AuthorityPolicyEvaluate(&policy, &facts, GetTickCount64());
     }
+    if (row->kind == AUTHORITY_COMMAND_EVENT_OPTION)
+        return AuthorityValidateEventPayload(imageBase, world, command,
+            snapshot->authenticatedMachineId, 0);
+    if (row->kind == AUTHORITY_COMMAND_FACTORY_PAYLOAD)
+        return AuthorityValidateFactoryPayload(imageBase, world, command,
+            snapshot->authenticatedMachineId, row->vtableRva, 0);
+    if (row->kind == AUTHORITY_COMMAND_IDEA_MUTATION) {
+        if (!idea_references_preflight(row, command) || !idea_command_cost_is_paid(row, command) ||
+            !copy_from_process((u8 *)command + row->actorOffset, &actor, sizeof(actor)) ||
+            actor <= 0 || !country_tag_valid(world, actor))
+            return (AuthorityResult){AUTHORITY_DECISION_DENY, AUTHORITY_REASON_IDEA_MUTATION_INVALID, 0};
+        facts.command = AUTHORITY_COMMAND_COUNTRY_ACTOR;
+        facts.actorControlledBySender = actor_controlled(snapshot->authenticatedMachineId, actor, world);
+        if (facts.actorControlledBySender == AUTHORITY_TRUTH_UNKNOWN)
+            return (AuthorityResult){AUTHORITY_DECISION_DENY, AUTHORITY_REASON_FACTS_UNKNOWN, 0};
+        return AuthorityPolicyEvaluate(&policy, &facts, GetTickCount64());
+    }
     if (row->kind == AUTHORITY_COMMAND_COUNTRY_CHANGE) {
         int32_t affected = 0, destination = 0;
         uint32_t affectedOffset = row->vtableRva == 0x295e368 ? 0x2c : 0x30;
@@ -567,7 +668,10 @@ static AuthorityResult evaluate_remote(CoveredClass *row, void *command,
         facts.affectedPeerControlsSource = AUTHORITY_TRUTH_TRUE;
         facts.actorControlledBySender = actor_controlled(snapshot->authenticatedMachineId,
             facts.sourceCountry, world);
-        facts.assignmentLockEnabled = AUTHORITY_TRUTH_FALSE;
+        AuthorityTruth started = game_started(world);
+        facts.assignmentLockEnabled = started;
+        facts.sourceObserverEligible = source == AUTH_OBSERVER_NATIVE ? AUTHORITY_TRUTH_FALSE :
+            started == AUTHORITY_TRUTH_TRUE ? native_observer_eligible(world, source) : AUTHORITY_TRUTH_UNKNOWN;
         if (destination != AUTH_OBSERVER_NATIVE)
             current_authority_facts(world, snapshot->authenticatedMachineId,
                 snapshot->authenticatedPeerGeneration, destination, &facts);
@@ -635,6 +739,59 @@ static __attribute__((noinline)) unsigned char __fastcall guarded_is_valid(void 
             if (!copy_from_process((u8 *)command + row->actorOffset, &actorTag, sizeof(actorTag)) ||
                 actorTag <= 0 || !country_tag_valid(world, actorTag)) {
                 count_reason(AUTHORITY_REASON_FACTS_UNKNOWN);
+                inc_stat(STAT_POLICY_DENIES); return 0;
+            }
+        }
+        if (row->kind == AUTHORITY_COMMAND_IDEA_MUTATION) {
+            int32_t actorTag = -1;
+            if (!idea_references_preflight(row, command) ||
+                !copy_from_process((u8 *)command + row->actorOffset, &actorTag, sizeof(actorTag)) ||
+                actorTag <= 0 || !country_tag_valid(world, actorTag)) {
+                count_reason(AUTHORITY_REASON_IDEA_MUTATION_INVALID);
+                inc_stat(STAT_POLICY_DENIES); return 0;
+            }
+        }
+        if (row->kind == AUTHORITY_COMMAND_EVENT_OPTION) {
+            if (orderedRemote) {
+                if (orderedSnapshot.sessionEpoch != current_epoch()) {
+                    count_reason(AUTHORITY_REASON_SESSION_MISMATCH);
+                    inc_stat(STAT_STALE_EPOCHS); inc_stat(STAT_POLICY_DENIES); return 0;
+                }
+                uint32_t currentGeneration = 0;
+                if (!peer_generation(orderedSnapshot.authenticatedMachineId,
+                    orderedSnapshot.hostServer, orderedSnapshot.transportConnection,
+                    orderedSnapshot.transportSessionContext, &currentGeneration, 0) ||
+                    currentGeneration != orderedSnapshot.authenticatedPeerGeneration) {
+                    count_reason(AUTHORITY_REASON_PEER_INVALID);
+                    inc_stat(STAT_STALE_PEERS); inc_stat(STAT_POLICY_DENIES); return 0;
+                }
+            }
+            AuthorityResult preflight = AuthorityValidateEventPayload(imageBase, world,
+                command, orderedRemote ? orderedSnapshot.authenticatedMachineId : ingress.machineId, 1);
+            if (preflight.decision != AUTHORITY_DECISION_ALLOW) {
+                count_reason(preflight.reason);
+                inc_stat(STAT_POLICY_DENIES); return 0;
+            }
+        }
+        if (row->kind == AUTHORITY_COMMAND_FACTORY_PAYLOAD) {
+            uint64_t sender = orderedRemote ? orderedSnapshot.authenticatedMachineId : ingress.machineId;
+            if (orderedRemote) {
+                if (orderedSnapshot.sessionEpoch != current_epoch()) {
+                    count_reason(AUTHORITY_REASON_SESSION_MISMATCH);
+                    inc_stat(STAT_STALE_EPOCHS); inc_stat(STAT_POLICY_DENIES); return 0;
+                }
+                uint32_t currentGeneration = 0;
+                if (!peer_generation(sender, orderedSnapshot.hostServer,
+                    orderedSnapshot.transportConnection, orderedSnapshot.transportSessionContext,
+                    &currentGeneration, 0) || currentGeneration != orderedSnapshot.authenticatedPeerGeneration) {
+                    count_reason(AUTHORITY_REASON_PEER_INVALID);
+                    inc_stat(STAT_STALE_PEERS); inc_stat(STAT_POLICY_DENIES); return 0;
+                }
+            }
+            AuthorityResult preflight = AuthorityValidateFactoryPayload(imageBase, world,
+                command, sender, row->vtableRva, 1);
+            if (preflight.decision != AUTHORITY_DECISION_ALLOW) {
+                count_reason(preflight.reason);
                 inc_stat(STAT_POLICY_DENIES); return 0;
             }
         }
@@ -965,6 +1122,14 @@ static int verify_static_sites(void) {
         bytes_equal(0x1db8e0, (const u8[]){0x40,0x53,0x48,0x83,0xec,0x20,0x48,0x8b,0xd9,0x48,0x8b,0x0d,0xa8,0x3d,0x15,0x03}, 16) &&
         bytes_equal(0x221f310, (const u8[]){0x48,0x83,0xec,0x28,0x8b,0x01,0x3d,0x68,0x12,0x00,0x00,0x76,0x24,0x48,0x8b,0x05}, 16) &&
         bytes_equal(0x1537970, (const u8[]){0x40,0x53,0x48,0x83,0xec,0x30,0x8b,0x44,0x24,0x60,0x41,0x0f,0xb6,0xd8,0x89,0x44}, 16) &&
+        bytes_equal(0xbb48f0, (const u8[]){0x48,0x89,0x5c,0x24,0x10,0x57,0x48,0x83,0xec,0x30,0x80,0x3d,0x51,0xd2,0xa2,0x02}, 16) &&
+        bytes_equal(0x6fcfa0, (const u8[]){0x83,0xb9,0x1c,0x04,0x00,0x00,0x01,0x0f,0x9c,0xc0,0xc3,0xcc,0xcc,0xcc,0xcc,0xcc}, 16) &&
+        bytes_equal(0x535e00, (const u8[]){0x48,0x83,0xec,0x28,0x48,0x83,0xc1,0x50,0x83,0x39,0x00,0x75,0x06,0x83,0x79,0x04}, 16) &&
+        bytes_equal(0xbb52f0, (const u8[]){0x48,0x89,0x74,0x24,0x10,0x57,0x48,0x83,0xec,0x30,0x80,0x3d,0x51,0xc8,0xa2,0x02}, 16) &&
+        bytes_equal(0x1c9cd0, (const u8[]){0x4c,0x8b,0xc9,0x83,0xfa,0xfe,0x74,0x54,0x83,0xfa,0xff,0x74,0x38,0x48,0x63,0x81}, 16) &&
+        bytes_equal(0xf6eb40, (const u8[]){0x48,0x8b,0x81,0x88,0x00,0x00,0x00,0x48,0x8b,0x90,0xf0,0x03,0x00,0x00,0x48,0x8b}, 16) &&
+        bytes_equal(0xf6f430, (const u8[]){0x48,0x8b,0x89,0x88,0x00,0x00,0x00,0xe9,0x64,0xaa,0xc6,0xff,0xcc,0xcc,0xcc,0xcc}, 16) &&
+        bytes_equal(0xf70990, (const u8[]){0x8b,0x05,0x9a,0x57,0x3c,0x02,0xc3,0xcc,0xcc,0xcc,0xcc,0xcc,0xcc,0xcc,0xcc,0xcc}, 16) &&
         bytes_equal(0x1399890, (const u8[]){0x40,0x53,0x48,0x83,0xec,0x20,0x80,0x79,0x60,0x00,0x48,0x8b,0xda,0x75,0x0f,0x48}, 16);
 }
 
@@ -1136,7 +1301,8 @@ void AuthorityGuardFlushDiagnostics(void) {
         "none", "native_invalid", "facts_unknown", "peer_invalid", "session_mismatch",
         "unreviewed", "actor_not_controlled", "requester_mismatch", "host_only_remote",
         "country_change_unauthorized", "assignment_locked", "grant_used", "grant_capacity", "grant_invalid",
-        "equipment_level_invalid"
+        "equipment_level_invalid", "idea_mutation_invalid", "event_payload_invalid",
+        "factory_payload_invalid"
     };
     if (!logCallback) return;
     for (size_t i = 1; i < sizeof(reasonNames) / sizeof(reasonNames[0]); ++i) {

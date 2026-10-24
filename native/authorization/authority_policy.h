@@ -20,7 +20,10 @@ typedef enum AuthorityCommandKind {
     AUTHORITY_COMMAND_COUNTRY_ACTOR = 1,
     AUTHORITY_COMMAND_COUNTRY_CHANGE = 2,
     AUTHORITY_COMMAND_COOP_REQUEST = 3,
-    AUTHORITY_COMMAND_HOST_ONLY = 4
+    AUTHORITY_COMMAND_HOST_ONLY = 4,
+    AUTHORITY_COMMAND_IDEA_MUTATION = 5,
+    AUTHORITY_COMMAND_EVENT_OPTION = 6,
+    AUTHORITY_COMMAND_FACTORY_PAYLOAD = 7
 } AuthorityCommandKind;
 
 typedef enum AuthorityTruth {
@@ -62,7 +65,10 @@ typedef enum AuthorityReason {
     AUTHORITY_REASON_GRANT_USED,
     AUTHORITY_REASON_GRANT_CAPACITY,
     AUTHORITY_REASON_GRANT_INVALID,
-    AUTHORITY_REASON_EQUIPMENT_LEVEL_INVALID
+    AUTHORITY_REASON_EQUIPMENT_LEVEL_INVALID,
+    AUTHORITY_REASON_IDEA_MUTATION_INVALID,
+    AUTHORITY_REASON_EVENT_PAYLOAD_INVALID,
+    AUTHORITY_REASON_FACTORY_PAYLOAD_INVALID
 } AuthorityReason;
 
 typedef struct AuthorityPeerIdentity {
@@ -110,6 +116,10 @@ typedef struct AuthorityFacts {
     int32_t sourceCountry;
     int32_t destinationCountry;
     AuthorityTruth assignmentLockEnabled;
+    /* Native country predicate at 0x6fcfa0 for the current source tag.
+       This is the game's observer-transition eligibility check; its field
+       meaning is intentionally left to the native predicate. */
+    AuthorityTruth sourceObserverEligible;
     AuthorityTruth destinationNativeAvailable;
     AuthorityTruth destinationUnoccupied;
     AuthorityTruth destinationHumanControlled;

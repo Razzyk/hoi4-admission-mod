@@ -162,7 +162,7 @@ When career-profile country tags contain duplicates, the wrapper invokes the nat
 
 ## Development authorization target contracts
 
-The 0.5.0 development guard uses the same pinned executable. Its reviewed class table in `native/authorization/authority_guard.c` records each vtable RVA, original target and instruction fingerprint. For each of 22 classes, slots 0, 9 and 12 wrap destruction, native validity and synchronization-history eligibility. Three country/co-op classes also wrap slot 10 execution. A unique world-load task slot and the native scripted target getter bring the total to 71 pointer hooks. `tests/LobbyInspector.cs` independently lists and checks all 71 targets, original code fingerprints and restored read-only table pages.
+The 0.5.0 development guard uses the same pinned executable. Its reviewed class table in `native/authorization/authority_guard.c` records each vtable RVA, original target and instruction fingerprint. For each of 25 classes, slots 0, 9 and 12 wrap destruction, native validity and synchronization-history eligibility. Three country/co-op classes also wrap slot 10 execution. A unique world-load task slot and the native scripted target getter bring the total to 80 pointer hooks. `tests/LobbyInspector.cs` independently lists and checks all 80 targets, original code fingerprints and restored read-only table pages.
 
 | Native call boundary | Return RVA | Additional behavior |
 |---|---:|---|

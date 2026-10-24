@@ -115,6 +115,15 @@ public static class LobbyInspector
         new AuthorizationTarget("CountryPriority5.Destructor", 0x272dde0, 0, 0x22d200, "40534883ec20488d05bb424f"),
         new AuthorizationTarget("CountryPriority5.IsValid", 0x272dde0, 9, 0x1166710, "837928007e0983792c027703"),
         new AuthorizationTarget("CountryPriority5.History", 0x272dde0, 12, 0x11d220, "32c0c3cccccccccccccccccc"),
+        new AuthorizationTarget("AddProductionLineFactories.Destructor", 0x2994db0, 0, 0xdb4550, "40534883ec20488d056bcf9601488bd9"),
+        new AuthorizationTarget("AddProductionLineFactories.IsValid", 0x2994db0, 9, 0x1162420, "48895c2408574883ec20488bf94883c1"),
+        new AuthorizationTarget("AddProductionLineFactories.History", 0x2994db0, 12, 0x11d220, "32c0c3cccccccccccccccccccccccccc"),
+        new AuthorizationTarget("AddMassFactoryAssignment.Destructor", 0x2993a28, 0, 0x1149060, "48895c24084889742410574883ec2048"),
+        new AuthorizationTarget("AddMassFactoryAssignment.IsValid", 0x2993a28, 9, 0x1161be0, "48895c241048896c2418488974242057"),
+        new AuthorizationTarget("AddMassFactoryAssignment.History", 0x2993a28, 12, 0x11d220, "32c0c3cccccccccccccccccccccccccc"),
+        new AuthorizationTarget("SelectEventOption.Destructor", 0x2938e60, 0, 0xa0d450, "48895c2408574883ec20488bf98bda48"),
+        new AuthorizationTarget("SelectEventOption.IsValid", 0x2938e60, 9, 0x153afb0, "48895c241048896c2418488974242057"),
+        new AuthorizationTarget("SelectEventOption.History", 0x2938e60, 12, 0x11d220, "32c0c3cccccccccccccccccccccccccc"),
         new AuthorizationTarget("WorldLoadTask.Execute", 0x2723ca0, 1, 0x1f71b0, "4883ec28488b4908e8a318fdff33c048"),
         new AuthorizationTarget("ChangeTagEffect.TargetGetter", 0x276f848, 25, 0x1399890, "40534883ec2080796000488bda750f48"),
     };
@@ -296,7 +305,8 @@ public static class LobbyInspector
                 bool trustedDll = result.NativeDLLLoaded && result.DllHashMatches;
                 result.AuthorizationSlots = AuthorizationTargets.Select(target =>
                     ReadAuthorizationSlot(handle, gameBase, game.ModuleMemorySize, dllBase, dllSize, target)).ToArray();
-                result.AuthorizationGuardActive = trustedDll && result.AuthorizationSlots.Length == 71 &&
+                result.AuthorizationGuardActive = trustedDll && AuthorizationTargets.Length == 80 &&
+                    result.AuthorizationSlots.Length == AuthorizationTargets.Length &&
                     result.AuthorizationSlots.All(slot => slot.Readable && slot.PointsToExecutableDll &&
                         slot.PageProtectionRestored && slot.OriginalFingerprintMatches && slot.Error == null);
                 result.HostGuardActive = trustedDll && result.Slots[0].PointsToExecutableDll;
