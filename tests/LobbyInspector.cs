@@ -100,6 +100,39 @@ public static class LobbyInspector
         new AuthorizationTarget("SetMPDebugSettings.Destructor", 0x29e68a0, 0, 0x22d200, "40534883ec20488d05bb424f"),
         new AuthorizationTarget("SetMPDebugSettings.IsValid", 0x29e68a0, 9, 0x1807b0, "b001c3cccccccccccccccccc"),
         new AuthorizationTarget("SetMPDebugSettings.History", 0x29e68a0, 12, 0x1807b0, "b001c3cccccccccccccccccc"),
+        new AuthorizationTarget("SetCustomDifficultyMultiplier.Destructor", 0x29e6328, 0, 0x163c1c0, "48895c2408574883ec20488d"),
+        new AuthorizationTarget("SetCustomDifficultyMultiplier.IsValid", 0x29e6328, 9, 0x163ddb0, "4c8bdc49895b105556574883"),
+        new AuthorizationTarget("SetCustomDifficultyMultiplier.History", 0x29e6328, 12, 0x1807b0, "b001c3cccccccccccccccccc"),
+        new AuthorizationTarget("SetDifficulty.Destructor", 0x29e6260, 0, 0x22d200, "40534883ec20488d05bb424f"),
+        new AuthorizationTarget("SetDifficulty.IsValid", 0x29e6260, 9, 0x1807b0, "b001c3cccccccccccccccccc"),
+        new AuthorizationTarget("SetDifficulty.History", 0x29e6260, 12, 0x1807b0, "b001c3cccccccccccccccccc"),
+        new AuthorizationTarget("SetGameRuleOption.Destructor", 0x29e63f0, 0, 0x22d200, "40534883ec20488d05bb424f"),
+        new AuthorizationTarget("SetGameRuleOption.IsValid", 0x29e63f0, 9, 0x163e050, "40534883ec30837928ff488b"),
+        new AuthorizationTarget("SetGameRuleOption.History", 0x29e63f0, 12, 0x1807b0, "b001c3cccccccccccccccccc"),
+        new AuthorizationTarget("ResetCustomDifficultyMultipliers.Destructor", 0x2a99a98, 0, 0x1c94a0, "40534883ec20488d051b8055"),
+        new AuthorizationTarget("ResetCustomDifficultyMultipliers.IsValid", 0x2a99a98, 9, 0x1807b0, "b001c3cccccccccccccccccc"),
+        new AuthorizationTarget("ResetCustomDifficultyMultipliers.History", 0x2a99a98, 12, 0x1807b0, "b001c3cccccccccccccccccc"),
+        new AuthorizationTarget("ResetGameRules.Destructor", 0x2a99b60, 0, 0x1c94a0, "40534883ec20488d051b8055"),
+        new AuthorizationTarget("ResetGameRules.IsValid", 0x2a99b60, 9, 0x1807b0, "b001c3cccccccccccccccccc"),
+        new AuthorizationTarget("ResetGameRules.History", 0x2a99b60, 12, 0x1807b0, "b001c3cccccccccccccccccc"),
+        new AuthorizationTarget("SetGamePlayOptions.Destructor", 0x29e6710, 0, 0xdb45f0, "40534883ec20488d05cbce96"),
+        new AuthorizationTarget("SetGamePlayOptions.IsValid", 0x29e6710, 9, 0x1807b0, "b001c3cccccccccccccccccc"),
+        new AuthorizationTarget("SetGamePlayOptions.History", 0x29e6710, 12, 0x1807b0, "b001c3cccccccccccccccccc"),
+        new AuthorizationTarget("UnlockIndustrialOrganisationTrait.Destructor", 0x2967cd8, 0, 0xdb4520, "40534883ec20488d059bcf96"),
+        new AuthorizationTarget("UnlockIndustrialOrganisationTrait.IsValid", 0x2967cd8, 9, 0x199d910, "488bc4488958104889701848"),
+        new AuthorizationTarget("UnlockIndustrialOrganisationTrait.History", 0x2967cd8, 12, 0x11d220, "32c0c3cccccccccccccccccc"),
+        new AuthorizationTarget("AddIndustrialOrgTraitToQueue.Destructor", 0x2967e68, 0, 0xdb4520, "40534883ec20488d059bcf96"),
+        new AuthorizationTarget("AddIndustrialOrgTraitToQueue.IsValid", 0x2967e68, 9, 0x199d220, "48895c2408574883ec20488b"),
+        new AuthorizationTarget("AddIndustrialOrgTraitToQueue.History", 0x2967e68, 12, 0x11d220, "32c0c3cccccccccccccccccc"),
+        new AuthorizationTarget("RemoveIndustrialOrgTraitFromQueue.Destructor", 0x2967f30, 0, 0xdb4520, "40534883ec20488d059bcf96"),
+        new AuthorizationTarget("RemoveIndustrialOrgTraitFromQueue.IsValid", 0x2967f30, 9, 0x199d3a0, "40534883ec20488bd94883c140"),
+        new AuthorizationTarget("RemoveIndustrialOrgTraitFromQueue.History", 0x2967f30, 12, 0x11d220, "32c0c3cccccccccccccccccc"),
+        new AuthorizationTarget("MoveIndustrialOrgTraitInQueue.Destructor", 0x2967ff8, 0, 0xdb4580, "40534883ec20488d053bcf96"),
+        new AuthorizationTarget("MoveIndustrialOrgTraitInQueue.IsValid", 0x2967ff8, 9, 0x199d2f0, "48895c24084889742410574883"),
+        new AuthorizationTarget("MoveIndustrialOrgTraitInQueue.History", 0x2967ff8, 12, 0x11d220, "32c0c3cccccccccccccccccc"),
+        new AuthorizationTarget("SetIndustrialOrgTraitsInQueue.Destructor", 0x29680c0, 0, 0xdb4620, "48895c24084889742410574883"),
+        new AuthorizationTarget("SetIndustrialOrgTraitsInQueue.IsValid", 0x29680c0, 9, 0x199d820, "4889742410574883ec20488bf9"),
+        new AuthorizationTarget("SetIndustrialOrgTraitsInQueue.History", 0x29680c0, 12, 0x11d220, "32c0c3cccccccccccccccccc"),
         new AuthorizationTarget("CountryPriority1.Destructor", 0x272dac0, 0, 0x22d200, "40534883ec20488d05bb424f"),
         new AuthorizationTarget("CountryPriority1.IsValid", 0x272dac0, 9, 0x1166710, "837928007e0983792c027703"),
         new AuthorizationTarget("CountryPriority1.History", 0x272dac0, 12, 0x11d220, "32c0c3cccccccccccccccccc"),
@@ -305,7 +338,7 @@ public static class LobbyInspector
                 bool trustedDll = result.NativeDLLLoaded && result.DllHashMatches;
                 result.AuthorizationSlots = AuthorizationTargets.Select(target =>
                     ReadAuthorizationSlot(handle, gameBase, game.ModuleMemorySize, dllBase, dllSize, target)).ToArray();
-                result.AuthorizationGuardActive = trustedDll && AuthorizationTargets.Length == 80 &&
+                result.AuthorizationGuardActive = trustedDll && AuthorizationTargets.Length == 113 &&
                     result.AuthorizationSlots.Length == AuthorizationTargets.Length &&
                     result.AuthorizationSlots.All(slot => slot.Readable && slot.PointsToExecutableDll &&
                         slot.PageProtectionRestored && slot.OriginalFingerprintMatches && slot.Error == null);

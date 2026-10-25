@@ -9,6 +9,11 @@ static int levelPredicateCalls, levelPredicateErrors, levelPredicateAnswer;
 static uint8_t expectedUpgradeLevel;
 static void *scriptReturn, *resolvedVariant, *expectedReference;
 static void *expectedDefinition, *expectedOwnerTag;
+static unsigned char equipmentTypeStorage[0x100];
+static void *equipmentTypeDefinitions[2];
+static unsigned char definitionA[0x20], definitionB[0x20];
+static unsigned char payloadEntries[2][0x10], liveEntries[2][0x10];
+static unsigned char commandBonusEntries[2][0x10], variantBonusEntries[2][0x10];
 static int32_t localHumanId;
 static unsigned diagnosticCalls;
 static char diagnosticLine[128];
@@ -140,6 +145,13 @@ static void set_upgrade_entry(void *entries, uint32_t index, void *definition, u
     memcpy(entry + 8, &level, sizeof(level));
 }
 
+static void set_bonus_list(void *list, void *entries, int32_t capacity, int32_t count) {
+    uintptr_t pointer = (uintptr_t)entries;
+    memcpy((unsigned char *)list + 8, &pointer, sizeof(pointer));
+    memcpy((unsigned char *)list + 0x10, &capacity, sizeof(capacity));
+    memcpy((unsigned char *)list + 0x14, &count, sizeof(count));
+}
+
 static unsigned char invoke_primary(void *command, void *motivation) {
     expected_command = command; expected_motivation = motivation;
     ValidThunk thunk = (ValidThunk)(imageBase + 0x22530ef - 16);
@@ -162,6 +174,13 @@ int main(void) {
     prepare_extra_image_sites();
     static unsigned char world[0xb40], map[0x100], countries[8][0x500];
     static unsigned char humans[2][0xa0], variant[0x500];
+    memcpy(definitionA + 8, &(int32_t){100}, sizeof(int32_t));
+    memcpy(definitionB + 8, &(int32_t){200}, sizeof(int32_t));
+    equipmentTypeDefinitions[0] = definitionA;
+    equipmentTypeDefinitions[1] = definitionB;
+    memcpy(equipmentTypeStorage + 0x58, &(uintptr_t){(uintptr_t)equipmentTypeDefinitions}, sizeof(uintptr_t));
+    memcpy(equipmentTypeStorage + 0x60, &(int32_t){2}, sizeof(int32_t));
+    memcpy(equipmentTypeStorage + 0x64, &(int32_t){2}, sizeof(int32_t));
     for (int i = 0; i < 8; ++i) fake_countries[i] = countries[i];
     void *variantVtable = imageBase + 0x2951608;
     memcpy(variant, &variantVtable, sizeof(variantVtable));
@@ -271,24 +290,31 @@ int main(void) {
     classes[12].originalValid = mock_native_valid;
     void *update = new_class_command(classes[12].vtableRva, 1001); C_CHECK(update != NULL);
     uint32_t refWord0 = 0x1268, refWord1 = 7;
-    void *equipmentType = (void *)(uintptr_t)0x7000;
+    void *equipmentType = equipmentTypeStorage;
     memcpy((unsigned char *)update + 0x28, &refWord0, sizeof(refWord0));
     memcpy((unsigned char *)update + 0x2c, &refWord1, sizeof(refWord1));
     memcpy((unsigned char *)update + 0x30, &equipmentType, sizeof(equipmentType));
     memcpy(variant + 0x3f0, &equipmentType, sizeof(equipmentType));
     set_upgrade_list(variant + 0x68, NULL, 0, 0);
     set_upgrade_list((unsigned char *)update + 0x58, NULL, 0, 0);
+    set_bonus_list(variant + 0x490, variantBonusEntries, 2, 0);
+    set_bonus_list((unsigned char *)update + 0x158, commandBonusEntries, 2, 0);
     expectedReference = (unsigned char *)update + 0x28;
     resolvedVariant = variant; int32_t variantActor = 1;
     memcpy(variant + 0x1c, &variantActor, sizeof(variantActor));
+    C_CHECK(AuthorityValidateEquipmentPayload(imageBase, update, 1).decision == AUTHORITY_DECISION_ALLOW);
     resolveCalls = resolveRefErrors = 0; expected_native_answer = 1;
     invoke_capture(update, motivation, 0x9912);
     C_CHECK(valid_arg_errors == 0 && CommandProvenanceFindAny(&provenance, update,
         (void *)(imageBase + classes[12].vtableRva), &(CommandProvenanceSnapshot){0}));
-    C_CHECK(invoke_primary(update, motivation) == 1 && resolveCalls == 3 && resolveRefErrors == 0);
+    int updateAnswer = invoke_primary(update, motivation);
+    C_CHECK(updateAnswer == 1 && resolveCalls == 5 && resolveRefErrors == 0);
     void *badUpdate = new_class_command(classes[12].vtableRva, 1001); C_CHECK(badUpdate != NULL);
     memcpy((unsigned char *)badUpdate + 0x28, &refWord0, sizeof(refWord0));
     memcpy((unsigned char *)badUpdate + 0x2c, &refWord1, sizeof(refWord1));
+    memcpy((unsigned char *)badUpdate + 0x30, &equipmentType, sizeof(equipmentType));
+    set_upgrade_list((unsigned char *)badUpdate + 0x58, NULL, 0, 0);
+    set_bonus_list((unsigned char *)badUpdate + 0x158, commandBonusEntries, 2, 0);
     int32_t foreignActor = 3; memcpy(variant + 0x1c, &foreignActor, sizeof(foreignActor));
     expectedReference = (unsigned char *)badUpdate + 0x28;
     expected_capture_answer = 1;
@@ -310,9 +336,6 @@ int main(void) {
     memcpy((unsigned char *)update + 0x2c, &refWord1, sizeof(refWord1));
     memcpy((unsigned char *)update + 0x30, &equipmentType, sizeof(equipmentType));
     expectedReference = (unsigned char *)update + 0x28; resolvedVariant = variant;
-    static unsigned char definitionA[0x20], definitionB[0x20], payloadEntries[2][0x10], liveEntries[2][0x10];
-    memcpy(definitionA + 8, &(int32_t){100}, sizeof(int32_t));
-    memcpy(definitionB + 8, &(int32_t){200}, sizeof(int32_t));
     set_upgrade_entry(liveEntries, 0, definitionA, 255);
     set_upgrade_entry(liveEntries, 1, definitionB, 1);
     set_upgrade_entry(payloadEntries, 0, definitionA, 255);
@@ -324,7 +347,7 @@ int main(void) {
     resolveCalls = resolveRefErrors = levelPredicateCalls = levelPredicateErrors = 0;
     invoke_capture(update, motivation, 0x9914);
     C_CHECK(invoke_primary(update, motivation) == 1);
-    C_CHECK(resolveCalls == 3 && resolveRefErrors == 0 && levelPredicateCalls == 1 && levelPredicateErrors == 0);
+    C_CHECK(resolveCalls == 5 && resolveRefErrors == 0 && levelPredicateCalls == 1 && levelPredicateErrors == 0);
 
     case_name = "changed downgrade and unsigned 255 levels use native AL";
     reset_fixture(722); set_fixture_human(humans[0], 1001, 1); fake_human_count = 1;
@@ -341,6 +364,7 @@ int main(void) {
     set_upgrade_list((unsigned char *)update + 0x58, payloadEntries, 2, 2);
     expectedDefinition = definitionB; expectedOwnerTag = variant + 0x1c;
     expectedUpgradeLevel = 3; levelPredicateAnswer = 1;
+    expected_capture_answer = 1;
     resolveCalls = levelPredicateCalls = levelPredicateErrors = 0;
     invoke_capture(update, motivation, 0x9915);
     C_CHECK(invoke_primary(update, motivation) == 1 && levelPredicateCalls == 1 && levelPredicateErrors == 0);
@@ -355,7 +379,7 @@ int main(void) {
     invoke_capture(overflowLevel, motivation, 0x9915);
     C_CHECK(invoke_primary(overflowLevel, motivation) == 0 && levelPredicateCalls == 2 && levelPredicateErrors == 0);
 
-    case_name = "unknown key cannot bypass a rejected known change; type change stays native-only";
+    case_name = "unknown key cannot bypass a rejected known change; mismatched type is denied";
     reset_fixture(723); set_fixture_human(humans[0], 1001, 1); fake_human_count = 1;
     prepare_world(world, map, humans, 1); fixture_sender_id = 1001; senderResolver = noisy_sender_resolver;
     static unsigned char unknownDefinition[0x20], mixedPayload[2][0x10];
@@ -370,8 +394,9 @@ int main(void) {
     expectedReference = (unsigned char *)update + 0x28;
     expectedUpgradeLevel = 255; levelPredicateAnswer = 0;
     resolveCalls = levelPredicateCalls = levelPredicateErrors = 0;
+    expected_capture_answer = 0;
     invoke_capture(update, motivation, 0x9916);
-    C_CHECK(invoke_primary(update, motivation) == 0 && levelPredicateCalls == 1 && levelPredicateErrors == 0);
+    C_CHECK(valid_calls == 0 && levelPredicateCalls == 0 && levelPredicateErrors == 0);
     void *typeChanged = new_class_command(classes[12].vtableRva, 1001); C_CHECK(typeChanged != NULL);
     memcpy((unsigned char *)typeChanged + 0x28, &refWord0, sizeof(refWord0));
     memcpy((unsigned char *)typeChanged + 0x2c, &refWord1, sizeof(refWord1));
@@ -379,66 +404,27 @@ int main(void) {
     memcpy((unsigned char *)typeChanged + 0x30, &otherType, sizeof(otherType));
     expectedReference = (unsigned char *)typeChanged + 0x28;
     levelPredicateAnswer = 0;
+    expected_capture_answer = 0;
     invoke_capture(typeChanged, motivation, 0x9916);
     int previousCalls = levelPredicateCalls;
-    C_CHECK(invoke_primary(typeChanged, motivation) == 1 && levelPredicateCalls == previousCalls);
+    C_CHECK(valid_calls == 0 && levelPredicateCalls == previousCalls);
 
-    case_name = "malformed upgrade arrays cannot reach the native level predicate";
-    memcpy((unsigned char *)update + 0x30, &equipmentType, sizeof(equipmentType));
-    int callsBeforeMalformed = levelPredicateCalls;
-    set_upgrade_list((unsigned char *)update + 0x58, mixedPayload, UINT32_MAX, UINT32_MAX);
-    C_CHECK(validate_update_equipment_levels(update, variant).decision == AUTHORITY_DECISION_DENY);
-    set_upgrade_list((unsigned char *)update + 0x58, mixedPayload, 0, UINT32_MAX);
-    C_CHECK(validate_update_equipment_levels(update, variant).decision == AUTHORITY_DECISION_DENY);
-    set_upgrade_list((unsigned char *)update + 0x58, mixedPayload, 2, 1);
-    C_CHECK(validate_update_equipment_levels(update, variant).decision == AUTHORITY_DECISION_DENY);
-    set_upgrade_list((unsigned char *)update + 0x58, NULL, 1, 1);
-    C_CHECK(validate_update_equipment_levels(update, variant).decision == AUTHORITY_DECISION_DENY);
-    set_upgrade_list((unsigned char *)update + 0x58, (void *)(UINTPTR_MAX - 8), 1, 1);
-    C_CHECK(validate_update_equipment_levels(update, variant).decision == AUTHORITY_DECISION_DENY);
-    set_upgrade_entry(mixedPayload, 0, (void *)(UINTPTR_MAX - 4), 1);
-    set_upgrade_list((unsigned char *)update + 0x58, mixedPayload, 1, 1);
-    C_CHECK(validate_update_equipment_levels(update, variant).decision == AUTHORITY_DECISION_DENY);
-    C_CHECK(levelPredicateCalls == callsBeforeMalformed);
-
-    case_name = "a full equipment-type pointer distinguishes identical low halves";
-    void *sameLowHalfType = (void *)(uintptr_t)0x100007000ull;
-    memcpy((unsigned char *)update + 0x30, &sameLowHalfType, sizeof(sameLowHalfType));
-    set_upgrade_list((unsigned char *)update + 0x58, mixedPayload, UINT32_MAX, UINT32_MAX);
-    C_CHECK(validate_update_equipment_levels(update, variant).decision == AUTHORITY_DECISION_ALLOW);
-    C_CHECK(levelPredicateCalls == callsBeforeMalformed);
-    memcpy((unsigned char *)update + 0x30, &equipmentType, sizeof(equipmentType));
-
-    case_name = "duplicate and descending serialized upgrade keys are refused";
-    levelPredicateAnswer = 1;
+    case_name = "same-type update remains eligible for the narrow level validation";
+    void *sameType = new_class_command(classes[12].vtableRva, 1001); C_CHECK(sameType != NULL);
+    memcpy((unsigned char *)sameType + 0x28, &refWord0, sizeof(refWord0));
+    memcpy((unsigned char *)sameType + 0x2c, &refWord1, sizeof(refWord1));
+    memcpy((unsigned char *)sameType + 0x30, &equipmentType, sizeof(equipmentType));
     set_upgrade_entry(mixedPayload, 0, definitionA, 5);
-    set_upgrade_entry(mixedPayload, 1, definitionA, 5);
-    set_upgrade_list((unsigned char *)update + 0x58, mixedPayload, 2, 2);
-    C_CHECK(validate_update_equipment_levels(update, variant).decision == AUTHORITY_DECISION_DENY);
-    set_upgrade_entry(mixedPayload, 0, definitionB, 4);
-    set_upgrade_entry(mixedPayload, 1, definitionA, 5);
-    C_CHECK(validate_update_equipment_levels(update, variant).decision == AUTHORITY_DECISION_DENY);
-
-    case_name = "a different payload pointer with a known ID still uses the trusted level rule";
-    static unsigned char aliasDefinition[0x20];
-    memcpy(aliasDefinition + 8, &(int32_t){200}, sizeof(int32_t));
-    set_upgrade_entry(mixedPayload, 0, aliasDefinition, 3);
-    set_upgrade_list((unsigned char *)update + 0x58, mixedPayload, 1, 1);
-    expectedDefinition = definitionB; expectedOwnerTag = variant + 0x1c;
-    expectedUpgradeLevel = 3; levelPredicateAnswer = 0;
-    levelPredicateCalls = levelPredicateErrors = 0;
-    C_CHECK(validate_update_equipment_levels(update, variant).decision == AUTHORITY_DECISION_DENY);
-    C_CHECK(levelPredicateCalls == 1 && levelPredicateErrors == 0);
-    levelPredicateAnswer = 1;
-    C_CHECK(validate_update_equipment_levels(update, variant).decision == AUTHORITY_DECISION_ALLOW);
-    C_CHECK(levelPredicateCalls == 2 && levelPredicateErrors == 0);
-
-    case_name = "an ordinary new key does not suppress an allowed known change";
-    set_upgrade_entry(mixedPayload, 0, unknownDefinition, 1);
     set_upgrade_entry(mixedPayload, 1, definitionB, 3);
-    set_upgrade_list((unsigned char *)update + 0x58, mixedPayload, 2, 2);
-    C_CHECK(validate_update_equipment_levels(update, variant).decision == AUTHORITY_DECISION_ALLOW);
-    C_CHECK(levelPredicateCalls == 3 && levelPredicateErrors == 0);
+    set_upgrade_list((unsigned char *)sameType + 0x58, mixedPayload, 2, 2);
+    expectedReference = (unsigned char *)sameType + 0x28;
+    expectedDefinition = definitionB; expectedOwnerTag = variant + 0x1c;
+    expectedUpgradeLevel = 3; levelPredicateAnswer = 1;
+    expected_capture_answer = 1;
+    invoke_capture(sameType, motivation, 0x9916);
+    int sameTypeResult = invoke_primary(sameType, motivation);
+    C_CHECK(sameTypeResult == 1);
+    C_CHECK(levelPredicateCalls == previousCalls + 1);
 
     case_name = "a foreign native object reference is refused before the game casts it";
     reset_fixture(724); set_fixture_human(humans[0], 1001, 1); fake_human_count = 1;
@@ -515,13 +501,13 @@ int main(void) {
     case_name = "every rejection reason is bounded and drained by worker diagnostics";
     memset((void *)rejectionReasons, 0, sizeof(rejectionReasons));
     diagnosticCalls = 0; logCallback = diagnostic_probe;
-    for (int reason = AUTHORITY_REASON_NATIVE_INVALID; reason <= AUTHORITY_REASON_IDEA_MUTATION_INVALID; ++reason)
+    for (int reason = AUTHORITY_REASON_NATIVE_INVALID; reason <= AUTHORITY_REASON_MIO_OWNER_NOT_CONTROLLED; ++reason)
         count_reason((AuthorityReason)reason);
     AuthorityGuardFlushDiagnostics();
-    C_CHECK(diagnosticCalls == AUTHORITY_REASON_IDEA_MUTATION_INVALID);
-    C_CHECK(strcmp(diagnosticLine, "AUTHORIZATION_REJECTED reason=idea_mutation_invalid count=1") == 0);
+    C_CHECK(diagnosticCalls == AUTHORITY_REASON_MIO_OWNER_NOT_CONTROLLED);
+    C_CHECK(strcmp(diagnosticLine, "AUTHORIZATION_REJECTED reason=mio_owner_not_controlled count=1") == 0);
     AuthorityGuardFlushDiagnostics();
-    C_CHECK(diagnosticCalls == AUTHORITY_REASON_IDEA_MUTATION_INVALID);
+    C_CHECK(diagnosticCalls == AUTHORITY_REASON_MIO_OWNER_NOT_CONTROLLED);
     logCallback = NULL;
 
     printf("PASS %u native country wrapper assertions\n", assertions_country);

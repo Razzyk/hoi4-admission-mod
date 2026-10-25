@@ -1,5 +1,15 @@
 # Validation
 
+## Development module v0.5.1: equipment bonuses and settings authority
+
+On 25 October 2026, the complete Windows suite passed with warnings treated as errors. New equipment payload and MIO bonus fixtures passed 56 and 139 assertions. Actual wrapper fixtures passed 68 equipment, 102 settings and 61 MIO ownership assertions, alongside 16,461 general native wrapper, 443 country/co-op/script, 35 idea, five event and eight factory wrapper assertions. The existing policy, provenance, event/factory payload, admission, delayed two-process transport and stability regressions also passed.
+
+The fixtures cover trusted definition-pointer normalization, native first-definition deduplication, unknown/duplicate upgrade keys, changed and grandfathered levels, type-changing update refusal, exact inherited bonuses with or without a MIO, native bonus-query/copy/destructor ABI, insertion-order and special-ID bonus lists, co-op organization ownership, host-only difficulty/rule settings, wrong-type MIO refusal before native ingress validation, stale epochs and rejected-command history suppression. A reentrant history call during native validation cannot observe a pending normalization as accepted. A native refusal is cached for that object so retrying cannot recalculate its bonuses against later MIO state. Native gameplay queries are mocked in these fixtures.
+
+Read-only comparison with the pinned executable verified all 113 hook slots for 36 reviewed command classes and lifecycle hooks. The final DLL then loaded automatically through the published injector into an isolated real HOI4 process: all authorization, admission and stability guards were active, table protections were restored and the service lease was valid. The loaded DLL matched the packaged DLL, SHA256 `6222b1907c239d1ac4f042f8ba2a231bfa3f1be18ee93f84378af7bd74ec457f`. Only that recorded test game and its helpers were closed afterward.
+
+The portable candidate contains 11 explicitly allowlisted public files, verified module payload hashes and no runtime sessions or credentials. This establishes build, fixture behavior and real installation. It does **not** establish live equipment-designer, focus/event, co-op, hotjoin or campaign compatibility, repeated real native MIO-query determinism, or measured gameplay overhead. XP prices, complete module/parent eligibility, event UI eligibility, scripted GUI permissions and unreviewed command families remain open. The published v0.4.0 release is unchanged; v0.5.1 is a development candidate.
+
 ## Development module v0.5.0: host command authorization
 
 On 24 October 2026, the final Windows x64 module built with warnings treated as errors and the complete expanded standalone suite passed: 246 policy assertions, 8,530 provenance assertions, 17 policy/adapter helper assertions, 16,461 general native-wrapper assertions, 456 country/equipment/diagnostic assertions, 35 idea-wrapper assertions, 39 event-payload assertions, 24 factory-payload assertions, five event-wrapper assertions and eight factory-wrapper assertions.

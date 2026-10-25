@@ -3,6 +3,8 @@
 #include "command_provenance.h"
 #include "event_payload.h"
 #include "factory_payload.h"
+#include "equipment_payload.h"
+#include "equipment_bonus.h"
 #include "../vtable_hook.h"
 #if defined(_MSC_VER)
 #include <intrin.h>
@@ -81,7 +83,18 @@ static CoveredClass classes[] = {
     {0x272dde0,0x22d200,0x1166710,0x11d220,0,0x28,AUTHORITY_COMMAND_COUNTRY_ACTOR,"40534883ec20488d05bb424f02","837928007e0983792c027703b001c332","32c0c3cccccccccccccccccccccccccc"},
     {0x2938e60,0xa0d450,0x153afb0,0x11d220,0,0x34,AUTHORITY_COMMAND_EVENT_OPTION,"48895c2408574883ec20488bf98bda48","48895c241048896c2418488974242057","32c0c3cccccccccccccccccccccccccc"},
     {0x2994db0,0xdb4550,0x1162420,0x11d220,0,0,AUTHORITY_COMMAND_FACTORY_PAYLOAD,"40534883ec20488d056bcf96","48895c2408574883ec20488bf9","32c0c3cccccccccccccccccccccccccc"},
-    {0x2993a28,0x1149060,0x1161be0,0x11d220,0,0,AUTHORITY_COMMAND_FACTORY_PAYLOAD,"48895c24084889742410574883","48895c241048896c2418488974242057","32c0c3cccccccccccccccccccccccccc"}
+    {0x2993a28,0x1149060,0x1161be0,0x11d220,0,0,AUTHORITY_COMMAND_FACTORY_PAYLOAD,"48895c24084889742410574883","48895c241048896c2418488974242057","32c0c3cccccccccccccccccccccccccc"},
+    {0x29e6328,0x163c1c0,0x163ddb0,0x1807b0,0,0,AUTHORITY_COMMAND_HOST_ONLY,"48895c2408574883ec20488d0557a13a","4c8bdc49895b105556574883ec60488b","b001c3cccccccccccccccccccccccccc"},
+    {0x29e6260,0x22d200,0x1807b0,0x1807b0,0,0,AUTHORITY_COMMAND_HOST_ONLY,"40534883ec20488d05bb424f02488bd9","b001c3cccccccccccccccccccccccccc","b001c3cccccccccccccccccccccccccc"},
+    {0x29e63f0,0x22d200,0x163e050,0x1807b0,0,0,AUTHORITY_COMMAND_HOST_ONLY,"40534883ec20488d05bb424f02488bd9","40534883ec30837928ff488bd90f849a","b001c3cccccccccccccccccccccccccc"},
+    {0x2a99a98,0x1c94a0,0x1807b0,0x1807b0,0,0,AUTHORITY_COMMAND_HOST_ONLY,"40534883ec20488d051b805502488bd9","b001c3cccccccccccccccccccccccccc","b001c3cccccccccccccccccccccccccc"},
+    {0x2a99b60,0x1c94a0,0x1807b0,0x1807b0,0,0,AUTHORITY_COMMAND_HOST_ONLY,"40534883ec20488d051b805502488bd9","b001c3cccccccccccccccccccccccccc","b001c3cccccccccccccccccccccccccc"},
+    {0x29e6710,0xdb45f0,0x1807b0,0x1807b0,0,0,AUTHORITY_COMMAND_HOST_ONLY,"40534883ec20488d05cbce9601488bd9","b001c3cccccccccccccccccccccccccc","b001c3cccccccccccccccccccccccccc"},
+    {0x2967cd8,0xdb4520,0x199d910,0x11d220,0,0,AUTHORITY_COMMAND_MIO_TRAIT_OWNER,"40534883ec20488d059bcf9601","488bc448895810488970184889782055","32c0c3cccccccccccccccccccccccccc"},
+    {0x2967e68,0xdb4520,0x199d220,0x11d220,0,0,AUTHORITY_COMMAND_MIO_TRAIT_OWNER,"40534883ec20488d059bcf9601","48895c2408574883ec20488bf94883c140","32c0c3cccccccccccccccccccccccccc"},
+    {0x2967f30,0xdb4520,0x199d3a0,0x11d220,0,0,AUTHORITY_COMMAND_MIO_TRAIT_OWNER,"40534883ec20488d059bcf9601","40534883ec20488bd94883c1408339007506","32c0c3cccccccccccccccccccccccccc"},
+    {0x2967ff8,0xdb4580,0x199d2f0,0x11d220,0,0,AUTHORITY_COMMAND_MIO_TRAIT_OWNER,"40534883ec20488d053bcf9601","48895c24084889742410574883ec20488bd9","32c0c3cccccccccccccccccccccccccc"},
+    {0x29680c0,0xdb4620,0x199d820,0x11d220,0,0,AUTHORITY_COMMAND_MIO_TRAIT_OWNER,"48895c24084889742410574883ec20","4889742410574883ec20488bf94883c148","32c0c3cccccccccccccccccccccccccc"}
 };
 #pragma clang diagnostic pop
 
@@ -114,7 +127,7 @@ static volatile LONG64 epochCounter = AUTH_EPOCH_INITIAL;
 static volatile LONG64 peerGenerationCounter;
 static volatile LONG active, stopped, stateValue;
 static volatile LONG64 stats[16];
-static volatile LONG64 rejectionReasons[AUTHORITY_REASON_FACTORY_PAYLOAD_INVALID + 1];
+static volatile LONG64 rejectionReasons[AUTHORITY_REASON_MIO_OWNER_NOT_CONTROLLED + 1];
 static AuthorityGuardLogger logCallback;
 static __thread IngressScope ingress;
 static SenderResolverFn senderResolver;
@@ -125,7 +138,7 @@ static volatile LONG64 nextGrantId;
 static uint64_t current_epoch(void) { return (uint64_t)InterlockedCompareExchange64(&epochCounter, 0, 0); }
 static void inc_stat(size_t index) { if (index < 16) InterlockedIncrement64(&stats[index]); }
 static void count_reason(AuthorityReason reason) {
-    if (reason > AUTHORITY_REASON_NONE && reason <= AUTHORITY_REASON_FACTORY_PAYLOAD_INVALID)
+    if (reason > AUTHORITY_REASON_NONE && reason <= AUTHORITY_REASON_MIO_OWNER_NOT_CONTROLLED)
         InterlockedIncrement64(&rejectionReasons[reason]);
 }
 
@@ -417,32 +430,6 @@ static int load_in_progress(void *world) {
     return value != 0;
 }
 
-typedef struct NativeUpgradeList {
-    uintptr_t entries;
-    uint32_t count;
-    uint32_t capacity;
-} NativeUpgradeList;
-
-static int read_upgrade_list(const void *listObject, NativeUpgradeList *out) {
-    int32_t signedCapacity = 0, signedCount = 0;
-    if (!listObject || !out ||
-        !copy_from_process((const u8 *)listObject + 8, &out->entries, sizeof(out->entries)) ||
-        !copy_from_process((const u8 *)listObject + 0x10, &signedCapacity, sizeof(signedCapacity)) ||
-        !copy_from_process((const u8 *)listObject + 0x14, &signedCount, sizeof(signedCount)) ||
-        signedCapacity < 0 || signedCount < 0) return 0;
-    out->capacity = (uint32_t)signedCapacity;
-    out->count = (uint32_t)signedCount;
-    if (out->count > out->capacity || (out->count && !out->entries) ||
-        (out->count && out->entries > UINTPTR_MAX - (uintptr_t)out->count * 0x10)) return 0;
-    return 1;
-}
-
-static int read_upgrade_definition_id(void *definition, int32_t *outId) {
-    uintptr_t address = (uintptr_t)definition;
-    return definition && outId && address <= UINTPTR_MAX - 8 &&
-        copy_from_process((const void *)(address + 8), outId, sizeof(*outId));
-}
-
 static uint32_t idea_cost_flag_offset(const CoveredClass *row) {
     if (!row) return 0;
     if (row->vtableRva == 0x2995328 || row->vtableRva == 0x2995648) return 0x38;
@@ -494,6 +481,60 @@ static int idea_references_preflight(const CoveredClass *row, const void *comman
     return 1;
 }
 
+typedef struct NativeMioReference {
+    void *organization;
+    int32_t ownerCountry;
+} NativeMioReference;
+
+static int resolve_mio_reference(const void *reference, void *world,
+    uint64_t sender, int checkOwner, NativeMioReference *out) {
+    typedef void *(__fastcall *ResolveReferenceFn)(void *);
+    if (!reference || !world || !out) return 0;
+    /* The native resolver consumes the typed reference object. First prove its
+       storage is readable, then bind the result to COrganisation's pinned vtable. */
+    uintptr_t marker = 0;
+    if (!copy_from_process(reference, &marker, sizeof(marker)) || !marker) return 0;
+    void *organization = ((ResolveReferenceFn)(imageBase + 0x221f310))((void *)reference);
+    void *vtable = NULL;
+    int32_t ownerCountry = -1;
+    if (!organization || !copy_from_process(organization, &vtable, sizeof(vtable)) ||
+        vtable != imageBase + 0x2967a28 ||
+        !copy_from_process((u8 *)organization + 0x120, &ownerCountry, sizeof(ownerCountry)) ||
+        ownerCountry <= 0 || !country_tag_valid(world, ownerCountry)) return 0;
+    if (checkOwner && actor_controlled(sender, ownerCountry, world) != AUTHORITY_TRUTH_TRUE)
+        return 0;
+    out->organization = organization;
+    out->ownerCountry = ownerCountry;
+    return 1;
+}
+
+static int mio_references_preflight(const CoveredClass *row, const void *command,
+    void *world, uint64_t sender, int checkOwner) {
+    if (!row || !command || !world || !sender) return 0;
+    uint32_t referenceOffset = 0x40;
+    if (row->vtableRva == 0x29680c0) {
+        uintptr_t entries = 0;
+        int32_t capacity = 0, count = 0;
+        if (!copy_from_process((const u8 *)command + 0x30, &entries, sizeof(entries)) ||
+            !copy_from_process((const u8 *)command + 0x38, &capacity, sizeof(capacity)) ||
+            !copy_from_process((const u8 *)command + 0x3c, &count, sizeof(count)) ||
+            capacity < 0 || count < 0 || count > capacity || (count && !entries) ||
+            (count && entries > UINTPTR_MAX - (uintptr_t)(uint32_t)count * 0x10)) return 0;
+        for (int32_t i = 0; i < count; ++i) {
+            u8 traitId[0x10];
+            uintptr_t address = entries + (uintptr_t)(uint32_t)i * 0x10;
+            if (!copy_from_process((const void *)address, traitId, sizeof(traitId))) return 0;
+        }
+        referenceOffset = 0x48;
+    }
+    if (row->vtableRva != 0x2967cd8 && row->vtableRva != 0x2967e68 &&
+        row->vtableRva != 0x2967f30 && row->vtableRva != 0x2967ff8 &&
+        row->vtableRva != 0x29680c0) return 0;
+    NativeMioReference resolved;
+    return resolve_mio_reference((const u8 *)command + referenceOffset,
+        world, sender, checkOwner, &resolved);
+}
+
 static int idea_command_cost_is_paid(const CoveredClass *row, const void *command) {
     u8 costFlag = 0;
     uint32_t offset = idea_cost_flag_offset(row);
@@ -513,64 +554,6 @@ static int resolve_update_variant(void *command, void *world, void **outVariant,
     *outVariant = variant;
     *outActor = actor;
     return 1;
-}
-
-static AuthorityResult validate_update_equipment_levels(void *command, void *variant) {
-    typedef unsigned char (__fastcall *LevelAllowedFn)(void *, int32_t *, uint8_t, void *, uint32_t);
-    void *serializedType = NULL, *liveType = NULL;
-    if (!copy_from_process((u8 *)command + 0x30, &serializedType, sizeof(serializedType)) ||
-        !copy_from_process((u8 *)variant + 0x3f0, &liveType, sizeof(liveType)))
-        return (AuthorityResult){AUTHORITY_DECISION_DENY, AUTHORITY_REASON_EQUIPMENT_LEVEL_INVALID, 0};
-    /* Type-changing edits are explicitly outside this narrow level subset. */
-    if (serializedType != liveType)
-        return (AuthorityResult){AUTHORITY_DECISION_ALLOW, AUTHORITY_REASON_NONE, 0};
-
-    NativeUpgradeList payload, live;
-    if (!read_upgrade_list((u8 *)command + 0x58, &payload) ||
-        !read_upgrade_list((u8 *)variant + 0x68, &live))
-        return (AuthorityResult){AUTHORITY_DECISION_DENY, AUTHORITY_REASON_EQUIPMENT_LEVEL_INVALID, 0};
-
-    /* Native merge orders by definition ID at +8. Two sorted cursors preserve
-       ordinary new keys while still checking every known key in linear time. */
-    uint32_t liveIndex = 0;
-    int32_t previousPayloadId = -1, previousLiveId = -1;
-    int32_t *ownerTag = (int32_t *)((u8 *)variant + 0x1c);
-    LevelAllowedFn levelAllowed = (LevelAllowedFn)(imageBase + 0x1537970);
-    for (uint32_t i = 0; i < payload.count; ++i) {
-        uintptr_t payloadEntry = payload.entries + (uintptr_t)i * 0x10;
-        void *definition = NULL;
-        int32_t payloadId = -1;
-        uint8_t requestedLevel = 0;
-        if (!copy_from_process((void *)payloadEntry, &definition, sizeof(definition)) || !definition ||
-            !read_upgrade_definition_id(definition, &payloadId) || payloadId < 0 ||
-            !copy_from_process((u8 *)payloadEntry + 8, &requestedLevel, sizeof(requestedLevel)) ||
-            payloadId <= previousPayloadId)
-            return (AuthorityResult){AUTHORITY_DECISION_DENY, AUTHORITY_REASON_EQUIPMENT_LEVEL_INVALID, 0};
-        previousPayloadId = payloadId;
-        void *liveDefinition = NULL;
-        uint8_t oldLevel = 0;
-        int32_t liveId = INT32_MAX;
-        while (liveIndex < live.count) {
-            uintptr_t liveEntry = live.entries + (uintptr_t)liveIndex * 0x10;
-            liveDefinition = NULL;
-            if (!copy_from_process((void *)liveEntry, &liveDefinition, sizeof(liveDefinition)) || !liveDefinition ||
-                !read_upgrade_definition_id(liveDefinition, &liveId) || liveId < 0 ||
-                liveId <= previousLiveId ||
-                !copy_from_process((u8 *)liveEntry + 8, &oldLevel, sizeof(oldLevel)))
-                return (AuthorityResult){AUTHORITY_DECISION_DENY, AUTHORITY_REASON_EQUIPMENT_LEVEL_INVALID, 0};
-            if (liveId >= payloadId) break;
-            previousLiveId = liveId;
-            ++liveIndex;
-        }
-        if (liveIndex >= live.count || liveId != payloadId) continue; /* Preserve a new, nonmatching definition. */
-        /* Pass the trusted live definition even if the payload pointer was a
-           different object with the same canonical ID. */
-        if (requestedLevel != oldLevel && !levelAllowed(liveDefinition, ownerTag, requestedLevel, NULL, 0))
-            return (AuthorityResult){AUTHORITY_DECISION_DENY, AUTHORITY_REASON_EQUIPMENT_LEVEL_INVALID, 0};
-        previousLiveId = liveId;
-        ++liveIndex;
-    }
-    return (AuthorityResult){AUTHORITY_DECISION_ALLOW, AUTHORITY_REASON_NONE, 0};
 }
 
 static AuthorityResult evaluate_remote(CoveredClass *row, void *command,
@@ -596,6 +579,15 @@ static AuthorityResult evaluate_remote(CoveredClass *row, void *command,
         facts.origin = AUTHORITY_ORIGIN_UNKNOWN;
         return AuthorityPolicyEvaluate(&policy, &facts, GetTickCount64());
     }
+    if (row->kind == AUTHORITY_COMMAND_MIO_TRAIT_OWNER) {
+        if (!mio_references_preflight(row, command, world,
+            snapshot->authenticatedMachineId, 0))
+            return (AuthorityResult){AUTHORITY_DECISION_DENY, AUTHORITY_REASON_MIO_REFERENCE_INVALID, 0};
+        if (!mio_references_preflight(row, command, world,
+            snapshot->authenticatedMachineId, 1))
+            return (AuthorityResult){AUTHORITY_DECISION_DENY, AUTHORITY_REASON_MIO_OWNER_NOT_CONTROLLED, 0};
+        return (AuthorityResult){AUTHORITY_DECISION_ALLOW, AUTHORITY_REASON_NONE, 0};
+    }
     if (row->kind == AUTHORITY_COMMAND_COUNTRY_ACTOR) {
         if (row->vtableRva == 0x2a24188) {
             void *variant = NULL;
@@ -604,7 +596,9 @@ static AuthorityResult evaluate_remote(CoveredClass *row, void *command,
             facts.actorControlledBySender = actor_controlled(snapshot->authenticatedMachineId, actor, world);
             if (facts.actorControlledBySender != AUTHORITY_TRUTH_TRUE)
                 return (AuthorityResult){AUTHORITY_DECISION_DENY, AUTHORITY_REASON_ACTOR_NOT_CONTROLLED, 0};
-            return validate_update_equipment_levels(command, variant);
+            AuthorityResult payload = AuthorityValidateEquipmentPayload(imageBase, command, 0);
+            if (payload.decision != AUTHORITY_DECISION_ALLOW) return payload;
+            return AuthorityCanonicalizeEquipmentBonus(imageBase, command);
         } else if (!copy_from_process((u8 *)command + row->actorOffset, &actor, sizeof(actor)) ||
             actor <= 0 || !country_tag_valid(world, actor)) {
             return (AuthorityResult){AUTHORITY_DECISION_DENY, AUTHORITY_REASON_FACTS_UNKNOWN, 0};
@@ -612,6 +606,13 @@ static AuthorityResult evaluate_remote(CoveredClass *row, void *command,
         facts.actorControlledBySender = actor_controlled(snapshot->authenticatedMachineId, actor, world);
         if (facts.actorControlledBySender == AUTHORITY_TRUTH_UNKNOWN)
             return (AuthorityResult){AUTHORITY_DECISION_DENY, AUTHORITY_REASON_FACTS_UNKNOWN, 0};
+        if (row->vtableRva == 0x2a240c0) {
+            if (facts.actorControlledBySender != AUTHORITY_TRUTH_TRUE)
+                return (AuthorityResult){AUTHORITY_DECISION_DENY, AUTHORITY_REASON_ACTOR_NOT_CONTROLLED, 0};
+            AuthorityResult payload = AuthorityValidateEquipmentPayload(imageBase, command, 0);
+            if (payload.decision != AUTHORITY_DECISION_ALLOW) return payload;
+            return AuthorityCanonicalizeEquipmentBonus(imageBase, command);
+        }
         return AuthorityPolicyEvaluate(&policy, &facts, GetTickCount64());
     }
     if (row->kind == AUTHORITY_COMMAND_EVENT_OPTION)
@@ -718,12 +719,30 @@ static __attribute__((noinline)) unsigned char __fastcall guarded_is_valid(void 
     if (!active) return row->originalValid(command, motivation) != 0;
     int callerKnown = image_rva_of(returnAddress, &callerRva);
     int ingressRemote = callerKnown && callerRva == 0x236795c && ingress.active;
+    int primaryOrderedCaller = callerKnown &&
+        (callerRva == 0x22530ef || callerRva == 0x2250dbd);
     int orderedRemote = 0;
     CommandProvenanceSnapshot orderedSnapshot;
     memset(&orderedSnapshot, 0, sizeof(orderedSnapshot));
     if (callerKnown && (callerRva == 0x22530ef || callerRva == 0x2250dbd || callerRva == 0x22536df)) {
         orderedRemote = CommandProvenanceFindAny(&provenance, command,
             (void *)(imageBase + row->vtableRva), &orderedSnapshot);
+    }
+    /* Reject stale queued commands before any command-specific resolver can
+       follow serialized references into a replaced world. */
+    if (orderedRemote) {
+        if (orderedSnapshot.sessionEpoch != current_epoch()) {
+            count_reason(AUTHORITY_REASON_SESSION_MISMATCH);
+            inc_stat(STAT_STALE_EPOCHS); inc_stat(STAT_POLICY_DENIES); return 0;
+        }
+        uint32_t currentGeneration = 0;
+        if (!peer_generation(orderedSnapshot.authenticatedMachineId,
+            orderedSnapshot.hostServer, orderedSnapshot.transportConnection,
+            orderedSnapshot.transportSessionContext, &currentGeneration, 0) ||
+            currentGeneration != orderedSnapshot.authenticatedPeerGeneration) {
+            count_reason(AUTHORITY_REASON_PEER_INVALID);
+            inc_stat(STAT_STALE_PEERS); inc_stat(STAT_POLICY_DENIES); return 0;
+        }
     }
     if (ingressRemote || orderedRemote) {
         void *world = NULL;
@@ -741,6 +760,12 @@ static __attribute__((noinline)) unsigned char __fastcall guarded_is_valid(void 
                 count_reason(AUTHORITY_REASON_FACTS_UNKNOWN);
                 inc_stat(STAT_POLICY_DENIES); return 0;
             }
+        }
+        if (row->kind == AUTHORITY_COMMAND_MIO_TRAIT_OWNER &&
+            !mio_references_preflight(row, command, world,
+                orderedRemote ? orderedSnapshot.authenticatedMachineId : ingress.machineId, 0)) {
+            count_reason(AUTHORITY_REASON_MIO_REFERENCE_INVALID);
+            inc_stat(STAT_POLICY_DENIES); return 0;
         }
         if (row->kind == AUTHORITY_COMMAND_IDEA_MUTATION) {
             int32_t actorTag = -1;
@@ -795,38 +820,71 @@ static __attribute__((noinline)) unsigned char __fastcall guarded_is_valid(void 
                 inc_stat(STAT_POLICY_DENIES); return 0;
             }
         }
+        if ((ingressRemote || (orderedRemote && primaryOrderedCaller)) &&
+            (row->vtableRva == 0x2a240c0 || row->vtableRva == 0x2a24188)) {
+            AuthorityResult bonusReferences =
+                AuthorityValidateEquipmentBonusReferences(imageBase, command);
+            if (bonusReferences.decision != AUTHORITY_DECISION_ALLOW) {
+                count_reason(bonusReferences.reason);
+                inc_stat(STAT_POLICY_DENIES); return 0;
+            }
+            AuthorityResult preflight = AuthorityValidateEquipmentPayload(imageBase, command, 1);
+            if (preflight.decision != AUTHORITY_DECISION_ALLOW) {
+                count_reason(preflight.reason);
+                inc_stat(STAT_POLICY_DENIES); return 0;
+            }
+        }
     }
     /* Do not call native code with a queued command from an earlier world or
        transport generation. Its serialized references may already be stale. */
-    if (orderedRemote) {
-        if (orderedSnapshot.sessionEpoch != current_epoch()) {
+    /* Equipment payload checks and MIO bonus canonicalization must happen at
+       the first ordered boundary, before native IsValid inspects the bytes.
+       The cached decision is consulted first so retries never re-resolve
+       world state or rewrite an already accepted serialized command. */
+    int equipmentCommand = row->vtableRva == 0x2a240c0 || row->vtableRva == 0x2a24188;
+    int primaryCaller = callerKnown && (callerRva == 0x22530ef || callerRva == 0x2250dbd);
+    int equipmentDecisionPending = 0;
+    AuthorityResult equipmentDecision = {AUTHORITY_DECISION_DEFER, AUTHORITY_REASON_NONE, 0};
+    if (orderedRemote && primaryCaller && equipmentCommand) {
+        int cachedBeforeNative = 0;
+        CommandProvenanceDecisionResult cachedBeforeNativeResult =
+            CommandProvenanceGetDecision(&provenance, &orderedSnapshot, 1, &cachedBeforeNative);
+        if (cachedBeforeNativeResult == COMMAND_PROVENANCE_DECISION_STALE) {
             count_reason(AUTHORITY_REASON_SESSION_MISMATCH);
             inc_stat(STAT_STALE_EPOCHS); inc_stat(STAT_POLICY_DENIES); return 0;
         }
-        uint32_t currentGeneration = 0;
-        if (!peer_generation(orderedSnapshot.authenticatedMachineId,
-            orderedSnapshot.hostServer, orderedSnapshot.transportConnection,
-            orderedSnapshot.transportSessionContext, &currentGeneration, 0) ||
-            currentGeneration != orderedSnapshot.authenticatedPeerGeneration) {
-            count_reason(AUTHORITY_REASON_PEER_INVALID);
-            inc_stat(STAT_STALE_PEERS); inc_stat(STAT_POLICY_DENIES); return 0;
+        if (cachedBeforeNativeResult == COMMAND_PROVENANCE_DECISION_UNSET) {
+            equipmentDecision = evaluate_remote(row, command, &orderedSnapshot, 1, 1);
+            if (equipmentDecision.decision == AUTHORITY_DECISION_DEFER) {
+                equipmentDecision.reason = equipmentDecision.reason == AUTHORITY_REASON_NONE ?
+                    AUTHORITY_REASON_FACTS_UNKNOWN : equipmentDecision.reason;
+            }
+            equipmentDecisionPending = 1;
+            if (equipmentDecision.decision != AUTHORITY_DECISION_ALLOW) {
+                CommandProvenanceCommitDecision(&provenance, &orderedSnapshot, 1, 0);
+                count_reason(equipmentDecision.reason);
+                inc_stat(equipmentDecision.decision == AUTHORITY_DECISION_DEFER ?
+                    STAT_POLICY_DEFERS : STAT_POLICY_DENIES);
+                return 0;
+            }
         }
-    }
-    if ((ingressRemote || orderedRemote) && row->vtableRva == 0x2a24188) {
-        void *world = NULL, *variant = NULL;
-        int32_t actorTag = -1;
-        if (!copy_from_process(imageBase + 0x332f260, &world, sizeof(world)) || !world ||
-            !resolve_update_variant(command, world, &variant, &actorTag)) {
-            count_reason(AUTHORITY_REASON_EQUIPMENT_LEVEL_INVALID);
-            inc_stat(STAT_POLICY_DENIES); return 0;
-        }
-        /* Ownership is checked in evaluate_remote after the cached-decision
-           path, so a repeated native predicate cannot invalidate an accepted
-           command after a roster transition. */
     }
     int nativeValid = row->originalValid(command, motivation) != 0;
     inc_stat(STAT_NATIVE_VALID);
-    if (!nativeValid) { inc_stat(STAT_NATIVE_INVALID); return 0; }
+    if (!nativeValid) {
+        inc_stat(STAT_NATIVE_INVALID);
+        /* Canonicalization is part of the first ordered validation attempt.
+           If native validation rejects that canonical payload, pin the refusal
+           to this object so a motivation retry cannot re-query MIO and mutate
+           the serialized command after native state changes. */
+        if (equipmentDecisionPending && equipmentDecision.decision == AUTHORITY_DECISION_ALLOW)
+            CommandProvenanceCommitDecision(&provenance, &orderedSnapshot, 1, 0);
+        return 0;
+    }
+    if (equipmentDecisionPending && equipmentDecision.decision == AUTHORITY_DECISION_ALLOW) {
+        CommandProvenanceCommitDecision(&provenance, &orderedSnapshot, 1, 1);
+        inc_stat(STAT_POLICY_ALLOWS);
+    }
     if (!callerKnown) return nativeValid;
     if (callerRva == 0x236795c) {
         if (!ingress.active) { count_reason(AUTHORITY_REASON_PEER_INVALID); return 0; }
@@ -1121,6 +1179,9 @@ static int verify_static_sites(void) {
         bytes_equal(0x1f71b0, (const u8[]){0x48,0x83,0xec,0x28,0x48,0x8b,0x49,0x08,0xe8,0xa3,0x18,0xfd,0xff,0x33,0xc0,0x48}, 16) &&
         bytes_equal(0x1db8e0, (const u8[]){0x40,0x53,0x48,0x83,0xec,0x20,0x48,0x8b,0xd9,0x48,0x8b,0x0d,0xa8,0x3d,0x15,0x03}, 16) &&
         bytes_equal(0x221f310, (const u8[]){0x48,0x83,0xec,0x28,0x8b,0x01,0x3d,0x68,0x12,0x00,0x00,0x76,0x24,0x48,0x8b,0x05}, 16) &&
+        bytes_equal(0xdb7a10, (const u8[]){0x40,0x53,0x48,0x83,0xec,0x30,0x41,0xb9,0x01,0x00,0x00,0x00,0x48,0x8b,0xda,0xe8}, 16) &&
+        bytes_equal(0xbd1e20, (const u8[]){0x48,0x89,0x74,0x24,0x10,0x48,0x89,0x7c,0x24,0x18,0x41,0x56,0x48,0x83,0xec,0x20}, 16) &&
+        bytes_equal(0x15f7e0, (const u8[]){0x48,0x89,0x5c,0x24,0x08,0x57,0x48,0x83,0xec,0x20,0x8b,0xfa,0x48,0x8b,0xd9,0x48}, 16) &&
         bytes_equal(0x1537970, (const u8[]){0x40,0x53,0x48,0x83,0xec,0x30,0x8b,0x44,0x24,0x60,0x41,0x0f,0xb6,0xd8,0x89,0x44}, 16) &&
         bytes_equal(0xbb48f0, (const u8[]){0x48,0x89,0x5c,0x24,0x10,0x57,0x48,0x83,0xec,0x30,0x80,0x3d,0x51,0xd2,0xa2,0x02}, 16) &&
         bytes_equal(0x6fcfa0, (const u8[]){0x83,0xb9,0x1c,0x04,0x00,0x00,0x01,0x0f,0x9c,0xc0,0xc3,0xcc,0xcc,0xcc,0xcc,0xcc}, 16) &&
@@ -1302,8 +1363,11 @@ void AuthorityGuardFlushDiagnostics(void) {
         "unreviewed", "actor_not_controlled", "requester_mismatch", "host_only_remote",
         "country_change_unauthorized", "assignment_locked", "grant_used", "grant_capacity", "grant_invalid",
         "equipment_level_invalid", "idea_mutation_invalid", "event_payload_invalid",
-        "factory_payload_invalid"
+        "factory_payload_invalid", "mio_reference_invalid", "mio_owner_not_controlled"
     };
+    _Static_assert(sizeof(reasonNames) / sizeof(reasonNames[0]) ==
+        AUTHORITY_REASON_MIO_OWNER_NOT_CONTROLLED + 1,
+        "diagnostic reason names must cover every AuthorityReason");
     if (!logCallback) return;
     for (size_t i = 1; i < sizeof(reasonNames) / sizeof(reasonNames[0]); ++i) {
         uint64_t count = (uint64_t)InterlockedExchange64(&rejectionReasons[i], 0);

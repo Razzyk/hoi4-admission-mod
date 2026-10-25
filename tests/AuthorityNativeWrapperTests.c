@@ -113,7 +113,9 @@ static void __fastcall capture_callback(void *server, const void *packet, uint32
     (void)server; (void)packet; (void)length; (void)connection; (void)channel;
     ValidThunk thunk = (ValidThunk)(imageBase + 0x236795c - 16);
     expected_command = capture_command; expected_motivation = capture_motivation;
-    CHECK(thunk(capture_command, capture_motivation) == expected_capture_answer);
+    unsigned char captureAnswer = thunk(capture_command, capture_motivation);
+    if (captureAnswer != expected_capture_answer) fprintf(stderr, "capture expected=%u got=%u calls=%d argerr=%d cmd=%p deny=%lld facts=%lld requester=%lld peer=%lld\n", expected_capture_answer, captureAnswer, valid_calls, valid_arg_errors, capture_command, rejectionReasons[AUTHORITY_REASON_EQUIPMENT_LEVEL_INVALID], rejectionReasons[AUTHORITY_REASON_FACTS_UNKNOWN], rejectionReasons[AUTHORITY_REASON_REQUESTER_MISMATCH], rejectionReasons[AUTHORITY_REASON_PEER_INVALID]);
+    CHECK(captureAnswer == expected_capture_answer);
 }
 
 static void *__fastcall mock_load_task(void *task) {
@@ -197,7 +199,7 @@ static void setup_private_image(void) {
     imageBase = (unsigned char *)VirtualAlloc(NULL, reserveSize, MEM_RESERVE, PAGE_NOACCESS);
     if (!imageBase) { fprintf(stderr, "VirtualAlloc reserve failed\n"); ExitProcess(2); }
     imageSize = reserveSize;
-    const uint32_t pages[] = {0x06fc000,0x0bb4000,0x0bb5000,0x1c9000,0x1e2000,
+    const uint32_t pages[] = {0x015f000,0x0bd1000,0x0db7000,0x06fc000,0x0bb4000,0x0bb5000,0x1c9000,0x1e2000,
         0x2250000,0x2252000,0x2253000,0x2367000,0x332f000};
     for (size_t i = 0; i < sizeof(pages)/sizeof(pages[0]); ++i) {
         if (!VirtualAlloc(imageBase + pages[i], 0x1000, MEM_COMMIT, PAGE_READWRITE)) {
@@ -209,9 +211,15 @@ static void setup_private_image(void) {
     emit_absolute_jump(imageBase + 0xbb48f0, fake_country_lookup);
     emit_absolute_jump(imageBase + 0x6fcfa0, fake_observer_eligible);
     emit_absolute_jump(imageBase + 0x1e2460, fake_native_available);
+    memcpy(imageBase + 0xdb7a10,
+        (const unsigned char[]){0x40,0x53,0x48,0x83,0xec,0x30,0x41,0xb9,0x01,0x00,0x00,0x00,0x48,0x8b,0xda,0xe8}, 16);
+    memcpy(imageBase + 0xbd1e20,
+        (const unsigned char[]){0x48,0x89,0x74,0x24,0x10,0x48,0x89,0x7c,0x24,0x18,0x41,0x56,0x48,0x83,0xec,0x20}, 16);
+    memcpy(imageBase + 0x15f7e0,
+        (const unsigned char[]){0x48,0x89,0x5c,0x24,0x08,0x57,0x48,0x83,0xec,0x20,0x8b,0xfa,0x48,0x8b,0xd9,0x48}, 16);
     set_private_pointer(0x332f260, NULL);
     DWORD oldProtect = 0;
-    const uint32_t codePages[] = {0x06fc000,0x0bb4000,0x0bb5000,0x1c9000,0x1e2000,
+    const uint32_t codePages[] = {0x015f000,0x0bd1000,0x0db7000,0x06fc000,0x0bb4000,0x0bb5000,0x1c9000,0x1e2000,
         0x2250000,0x2252000,0x2253000,0x2367000};
     /* Materialize each authenticated return site once, then seal every code
      * page RX before executing any fixture thunk. */

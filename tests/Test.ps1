@@ -29,23 +29,29 @@ $vtableTests = Join-Path $WorkDirectory 'VtableTests.exe'
 if ($LASTEXITCODE -ne 0) { throw 'Vtable test compile failed' }
 & $vtableTests
 if ($LASTEXITCODE -ne 0) { throw 'Vtable checks failed' }
-foreach ($name in @('AuthorityPolicyTests', 'CommandProvenanceTests', 'AuthorityGuardTests', 'AuthorityEventPayloadTests', 'AuthorityFactoryPayloadTests')) {
+foreach ($name in @('AuthorityPolicyTests', 'CommandProvenanceTests', 'AuthorityGuardTests', 'AuthorityEventPayloadTests', 'AuthorityFactoryPayloadTests', 'AuthorityEquipmentPayloadTests', 'AuthorityEquipmentBonusTests')) {
     $authorizationTests = Join-Path $WorkDirectory ($name + '.exe')
     $authorizationSources = @((Join-Path $PSScriptRoot ($name + '.c')))
     if ($name -eq 'AuthorityGuardTests') {
         $authorizationSources += Join-Path $root 'native\authorization\event_payload.c'
         $authorizationSources += Join-Path $root 'native\authorization\factory_payload.c'
+        $authorizationSources += Join-Path $root 'native\authorization\equipment_payload.c'
+        $authorizationSources += Join-Path $root 'native\authorization\equipment_bonus.c'
     }
     & $Zig cc -target x86_64-windows-gnu -std=c11 -O2 -Wall -Wextra -Werror -o $authorizationTests @authorizationSources -lbcrypt
     if ($LASTEXITCODE -ne 0) { throw ($name + ' compile failed') }
     & $authorizationTests
     if ($LASTEXITCODE -ne 0) { throw ($name + ' failed') }
 }
-foreach ($name in @('AuthorityNativeWrapperTests', 'AuthorityCountryWrapperTests', 'AuthorityIdeaWrapperTests', 'AuthorityEventWrapperTests', 'AuthorityFactoryWrapperTests')) {
+foreach ($name in @('AuthorityNativeWrapperTests', 'AuthorityCountryWrapperTests', 'AuthorityIdeaWrapperTests', 'AuthorityEventWrapperTests', 'AuthorityFactoryWrapperTests', 'AuthoritySettingsWrapperTests', 'AuthorityMioWrapperTests', 'AuthorityEquipmentWrapperTests')) {
     $wrapperTests = Join-Path $WorkDirectory ($name + '.exe')
     $wrapperSources = @((Join-Path $PSScriptRoot ($name + '.c')), (Join-Path $root 'native\authorization\authority_policy.c'), (Join-Path $root 'native\authorization\command_provenance.c'), (Join-Path $root 'native\vtable_hook.c'))
     if ($name -notin @('AuthorityEventWrapperTests', 'AuthorityFactoryWrapperTests')) { $wrapperSources += Join-Path $root 'native\authorization\event_payload.c' }
     if ($name -notin @('AuthorityEventWrapperTests', 'AuthorityFactoryWrapperTests')) { $wrapperSources += Join-Path $root 'native\authorization\factory_payload.c' }
+    if ($name -ne 'AuthorityEquipmentWrapperTests') {
+        $wrapperSources += Join-Path $root 'native\authorization\equipment_payload.c'
+        $wrapperSources += Join-Path $root 'native\authorization\equipment_bonus.c'
+    }
     & $Zig cc -target x86_64-windows-gnu -std=c11 -O2 -Wall -Wextra -Werror -o $wrapperTests @wrapperSources -lbcrypt
     if ($LASTEXITCODE -ne 0) { throw ($name + ' compile failed') }
     & $wrapperTests
