@@ -10,7 +10,17 @@ $env:ZIG_LOCAL_CACHE_DIR = Join-Path $WorkDirectory 'zig-local'
 $bin = Join-Path $WorkDirectory 'bin'
 New-Item -ItemType Directory -Force -Path $bin | Out-Null
 $dll = Join-Path $bin 'HOI4Admission.dll'
-& $Zig cc -target x86_64-windows-gnu -shared -std=c11 -O2 -Wall -Wextra -Werror -fno-fast-math -o $dll (Join-Path $PSScriptRoot 'native\admission.c') (Join-Path $PSScriptRoot 'native\lobby_guard.c') (Join-Path $PSScriptRoot 'native\vtable_hook.c') (Join-Path $PSScriptRoot 'native\stability\stability_guard.c') (Join-Path $PSScriptRoot 'native\peer_protocol.c') -lbcrypt
+$nativeSources = @(
+    'native\admission.c', 'native\lobby_guard.c', 'native\vtable_hook.c',
+    'native\stability\stability_guard.c', 'native\peer_protocol.c',
+    'native\authorization\authority_policy.c', 'native\authorization\command_provenance.c',
+    'native\authorization\event_payload.c',
+    'native\authorization\factory_payload.c',
+    'native\authorization\equipment_payload.c',
+    'native\authorization\equipment_bonus.c',
+    'native\authorization\authority_guard.c'
+) | ForEach-Object { Join-Path $PSScriptRoot $_ }
+& $Zig cc -target x86_64-windows-gnu -shared -std=c11 -O2 -Wall -Wextra -Werror -fno-fast-math -o $dll @nativeSources -lbcrypt
 if ($LASTEXITCODE -ne 0) { throw 'Native DLL build failed' }
 $compiler = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
 if (-not (Test-Path -LiteralPath $compiler)) { throw '.NET Framework 4.8 C# compiler is required' }

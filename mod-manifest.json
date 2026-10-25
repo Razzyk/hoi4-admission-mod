@@ -3,6 +3,6 @@
   "gameVersion": "1.19.3.0",
   "gameplayMods": [],
   "nativeModules": [
-    { "name": "HOI4Admission", "version": "0.4.0", "protocol": 2, "lobbyEnforcement": true, "peerAdmission": 1, "careerProfileStabilityGuard": true }
+    { "name": "HOI4Admission", "version": "0.5.1", "protocol": 2, "lobbyEnforcement": true, "peerAdmission": 1, "careerProfileStabilityGuard": true, "hostCommandAuthorization": 1 }
   ]
 }
